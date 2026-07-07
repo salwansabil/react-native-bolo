@@ -1,11 +1,11 @@
 import "../../global.css";
 
-import { useEffect } from "react";
+import { colors } from "@/theme";
 import { useFonts } from "expo-font";
 import { Stack } from "expo-router";
 import * as SplashScreen from "expo-splash-screen";
 import { StatusBar } from "expo-status-bar";
-import { colors } from "@/theme";
+import { useEffect } from "react";
 
 void SplashScreen.preventAutoHideAsync();
 
