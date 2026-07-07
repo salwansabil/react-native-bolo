@@ -1,0 +1,119 @@
+@import "tailwindcss/theme.css" layer(theme);
+@import "tailwindcss/preflight.css" layer(base);
+@import "tailwindcss/utilities.css";
+
+@import "nativewind/theme";
+
+@theme {
+  --font-sans: "Poppins-Regular";
+  --font-poppins: "Poppins-Regular";
+  --font-poppins-medium: "Poppins-Medium";
+  --font-poppins-semibold: "Poppins-SemiBold";
+  --font-poppins-bold: "Poppins-Bold";
+
+  --color-lingua-purple: #6c4ef5;
+  --color-lingua-deep-purple: #5b3bf6;
+  --color-lingua-blue: #4d8bff;
+  --color-lingua-green: #21c16b;
+  --color-lingua-success: #21c16b;
+  --color-lingua-warning: #ffc800;
+  --color-lingua-streak: #ff8a00;
+  --color-lingua-error: #ff4d4f;
+  --color-lingua-info: #4d8bff;
+  --color-lingua-text-primary: #0d132b;
+  --color-lingua-text-secondary: #6b7280;
+  --color-lingua-border: #e5e7eb;
+  --color-lingua-surface: #f6f7fb;
+  --color-lingua-background: #ffffff;
+}
+
+@layer utilities {
+  .h1 {
+    font-family: "Poppins-Bold";
+    font-size: 32px;
+    line-height: 38.4px;
+  }
+
+  .h2 {
+    font-family: "Poppins-SemiBold";
+    font-size: 24px;
+    line-height: 31.2px;
+  }
+
+  .h3 {
+    font-family: "Poppins-SemiBold";
+    font-size: 20px;
+    line-height: 26px;
+  }
+
+  .h4 {
+    font-family: "Poppins-Medium";
+    font-size: 16px;
+    line-height: 22.4px;
+  }
+
+  .body-lg {
+    font-family: "Poppins-Regular";
+    font-size: 16px;
+    line-height: 25.6px;
+  }
+
+  .body-md {
+    font-family: "Poppins-Regular";
+    font-size: 14px;
+    line-height: 22.4px;
+  }
+
+  .body-sm {
+    font-family: "Poppins-Regular";
+    font-size: 13px;
+    line-height: 20.8px;
+  }
+
+  .caption {
+    font-family: "Poppins-Regular";
+    font-size: 11px;
+    line-height: 15.4px;
+  }
+
+  .ds-card {
+    border-width: 1px;
+    border-color: var(--color-lingua-border);
+    border-radius: 16px;
+    background-color: var(--color-lingua-background);
+    padding: 20px;
+  }
+
+  .ds-card__title {
+    font-family: "Poppins-SemiBold";
+    font-size: 16px;
+    line-height: 22.4px;
+    color: var(--color-lingua-deep-purple);
+    text-transform: uppercase;
+  }
+
+  .ds-card__divider {
+    height: 1px;
+    background-color: var(--color-lingua-border);
+  }
+
+  .ds-swatch {
+    height: 64px;
+    width: 64px;
+    border-radius: 8px;
+  }
+
+  .ds-swatch--large {
+    height: 86px;
+    width: 86px;
+    border-radius: 8px;
+  }
+
+  .ds-label {
+    font-family: "Poppins-SemiBold";
+    font-size: 11px;
+    line-height: 15.4px;
+    color: var(--color-lingua-text-secondary);
+    text-transform: uppercase;
+  }
+}
