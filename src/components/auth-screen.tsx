@@ -1,7 +1,9 @@
+import { isClerkAPIResponseError, useSignIn, useSignUp, useSSO } from "@clerk/expo";
 import { images } from "@/constants/images";
 import { useRouter } from "expo-router";
 import { useRef, useState } from "react";
 import {
+  ActivityIndicator,
   Image,
   KeyboardAvoidingView,
   Modal,
@@ -19,15 +21,36 @@ type AuthScreenProps = {
 };
 
 const verificationCodeLength = 6;
+type SocialStrategy = "oauth_google" | "oauth_facebook" | "oauth_apple";
 
 export function AuthScreen({ mode }: AuthScreenProps) {
   const router = useRouter();
+  const { startSSOFlow } = useSSO();
+  const {
+    signIn,
+    fetchStatus: signInFetchStatus,
+  } = useSignIn();
+  const {
+    signUp,
+    fetchStatus: signUpFetchStatus,
+  } = useSignUp();
   const [isVerificationVisible, setIsVerificationVisible] = useState(false);
+  const [emailAddress, setEmailAddress] = useState("");
+  const [password, setPassword] = useState("");
   const [verificationCode, setVerificationCode] = useState("");
   const [isPasswordVisible, setIsPasswordVisible] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [activeSocialStrategy, setActiveSocialStrategy] = useState<SocialStrategy | null>(
+    null,
+  );
+  const [authError, setAuthError] = useState("");
   const inputRef = useRef<TextInput>(null);
 
   const isSignUp = mode === "sign-up";
+  const isFetching =
+    isSubmitting ||
+    activeSocialStrategy !== null ||
+    (isSignUp ? signUpFetchStatus === "fetching" : signInFetchStatus === "fetching");
   const title = isSignUp ? "Create your account" : "Welcome back";
   const subtitle = isSignUp
     ? "Start your language journey today ✨"
@@ -38,6 +61,24 @@ export function AuthScreen({ mode }: AuthScreenProps) {
     : "Don't have an account?";
   const footerAction = isSignUp ? "Log in" : "Sign up";
   const footerRoute = isSignUp ? "/sign-in" : "/sign-up";
+  const canSubmit =
+    emailAddress.trim().length > 0 && (!isSignUp || password.length > 0);
+
+  const getClerkResultErrorMessage = (
+    error: { longMessage?: string; message?: string } | null,
+  ) => error?.longMessage ?? error?.message ?? "";
+
+  const getErrorMessage = (error: unknown) => {
+    if (isClerkAPIResponseError(error)) {
+      return error.errors[0]?.longMessage ?? error.errors[0]?.message ?? "Please try again.";
+    }
+
+    if (error instanceof Error) {
+      return error.message;
+    }
+
+    return "Something went wrong. Please try again.";
+  };
 
   const openVerificationModal = () => {
     setVerificationCode("");
@@ -47,14 +88,149 @@ export function AuthScreen({ mode }: AuthScreenProps) {
     });
   };
 
-  const handleVerificationChange = (value: string) => {
+  const handlePrimaryPress = async () => {
+    if (!canSubmit || isSubmitting) {
+      return;
+    }
+
+    setAuthError("");
+    setIsSubmitting(true);
+
+    try {
+      if (isSignUp) {
+        const signUpResult = await signUp.password({
+          emailAddress: emailAddress.trim(),
+          password,
+        });
+        const signUpError = getClerkResultErrorMessage(signUpResult.error);
+
+        if (signUpError) {
+          setAuthError(signUpError);
+          return;
+        }
+
+        const emailCodeResult = await signUp.verifications.sendEmailCode();
+        const emailCodeError = getClerkResultErrorMessage(emailCodeResult.error);
+
+        if (emailCodeError) {
+          setAuthError(emailCodeError);
+          return;
+        }
+
+        openVerificationModal();
+        return;
+      }
+
+      const signInResult = await signIn.emailCode.sendCode({
+        emailAddress: emailAddress.trim(),
+      });
+      const signInError = getClerkResultErrorMessage(signInResult.error);
+
+      if (signInError) {
+        setAuthError(signInError);
+        return;
+      }
+
+      openVerificationModal();
+    } catch (error) {
+      setAuthError(getErrorMessage(error));
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  const handleVerificationChange = async (value: string) => {
     const digitsOnly = value.replace(/\D/g, "").slice(0, verificationCodeLength);
 
     setVerificationCode(digitsOnly);
+    setAuthError("");
 
     if (digitsOnly.length === verificationCodeLength) {
-      setIsVerificationVisible(false);
-      router.replace("/");
+      setIsSubmitting(true);
+
+      try {
+        if (isSignUp) {
+          const verifySignUpResult = await signUp.verifications.verifyEmailCode({
+            code: digitsOnly,
+          });
+          const verifySignUpError = getClerkResultErrorMessage(verifySignUpResult.error);
+
+          if (verifySignUpError) {
+            setAuthError(verifySignUpError);
+            return;
+          }
+
+          if (signUp.status === "complete") {
+            const finalizeResult = await signUp.finalize();
+            const finalizeError = getClerkResultErrorMessage(finalizeResult.error);
+
+            if (finalizeError) {
+              setAuthError(finalizeError);
+              return;
+            }
+
+            setIsVerificationVisible(false);
+            router.replace("/");
+            return;
+          }
+
+          setAuthError("Sign up is not complete yet. Please try again.");
+          return;
+        }
+
+        const verifySignInResult = await signIn.emailCode.verifyCode({
+          code: digitsOnly,
+        });
+        const verifySignInError = getClerkResultErrorMessage(verifySignInResult.error);
+
+        if (verifySignInError) {
+          setAuthError(verifySignInError);
+          return;
+        }
+
+        if (signIn.status === "complete") {
+          const finalizeResult = await signIn.finalize();
+          const finalizeError = getClerkResultErrorMessage(finalizeResult.error);
+
+          if (finalizeError) {
+            setAuthError(finalizeError);
+            return;
+          }
+
+          setIsVerificationVisible(false);
+          router.replace("/");
+          return;
+        }
+
+        setAuthError("Sign in is not complete yet. Please try again.");
+      } catch (error) {
+        setVerificationCode("");
+        setAuthError(getErrorMessage(error));
+      } finally {
+        setIsSubmitting(false);
+      }
+    }
+  };
+
+  const handleSocialPress = async (strategy: SocialStrategy) => {
+    if (isFetching) {
+      return;
+    }
+
+    setAuthError("");
+    setActiveSocialStrategy(strategy);
+
+    try {
+      const { createdSessionId, setActive } = await startSSOFlow({ strategy });
+
+      if (createdSessionId) {
+        await setActive?.({ session: createdSessionId });
+        router.replace("/");
+      }
+    } catch (error) {
+      setAuthError(getErrorMessage(error));
+    } finally {
+      setActiveSocialStrategy(null);
     }
   };
 
@@ -110,10 +286,12 @@ export function AuthScreen({ mode }: AuthScreenProps) {
               autoCapitalize="none"
               autoCorrect={false}
               keyboardType="email-address"
+              onChangeText={setEmailAddress}
               placeholder="alex@gmail.com"
               placeholderTextColor="rgba(2, 7, 53, 0.42)"
               style={styles.fieldInput}
               underlineColorAndroid="transparent"
+              value={emailAddress}
             />
           </View>
 
@@ -127,8 +305,10 @@ export function AuthScreen({ mode }: AuthScreenProps) {
                   placeholder="•••••••••"
                   placeholderTextColor="rgba(2, 7, 53, 0.42)"
                   secureTextEntry={!isPasswordVisible}
+                  onChangeText={setPassword}
                   style={[styles.fieldInput, styles.passwordInput]}
                   underlineColorAndroid="transparent"
+                  value={password}
                 />
                 <EyeIcon
                   isVisible={isPasswordVisible}
@@ -140,13 +320,28 @@ export function AuthScreen({ mode }: AuthScreenProps) {
 
           <TouchableOpacity
             activeOpacity={0.82}
-            onPress={openVerificationModal}
-            style={styles.primaryButton}
+            disabled={!canSubmit || isFetching}
+            onPress={handlePrimaryPress}
+            style={[
+              styles.primaryButton,
+              (!canSubmit || isFetching) && styles.primaryButtonDisabled,
+            ]}
           >
-            <Text className="text-center font-poppins-semibold text-[25px] leading-[31px] text-white">
-              {primaryLabel}
-            </Text>
+            {isFetching && !isVerificationVisible ? (
+              <ActivityIndicator color="#FFFFFF" />
+            ) : (
+              <Text className="text-center font-poppins-semibold text-[25px] leading-[31px] text-white">
+                {primaryLabel}
+              </Text>
+            )}
           </TouchableOpacity>
+          {authError ? (
+            <Text className="text-center font-poppins-medium text-[14px] leading-[21px] text-[#FF4D4F]">
+              {authError}
+            </Text>
+          ) : null}
+
+          {isSignUp ? <View nativeID="clerk-captcha" /> : null}
         </View>
 
         <View className="my-[25px] flex-row items-center gap-6">
@@ -158,9 +353,27 @@ export function AuthScreen({ mode }: AuthScreenProps) {
         </View>
 
         <View className="gap-[13px]">
-          <SocialAuthButton icon="G" iconColor="#4285F4" label="Continue with Google" />
-          <SocialAuthButton icon="f" iconColor="#1877F2" label="Continue with Facebook" />
-          <SocialAuthButton icon="" iconColor="#020735" label="Continue with Apple" />
+          <SocialAuthButton
+            isLoading={activeSocialStrategy === "oauth_google"}
+            icon="G"
+            iconColor="#4285F4"
+            label="Continue with Google"
+            onPress={() => void handleSocialPress("oauth_google")}
+          />
+          <SocialAuthButton
+            isLoading={activeSocialStrategy === "oauth_facebook"}
+            icon="f"
+            iconColor="#1877F2"
+            label="Continue with Facebook"
+            onPress={() => void handleSocialPress("oauth_facebook")}
+          />
+          <SocialAuthButton
+            isLoading={activeSocialStrategy === "oauth_apple"}
+            icon=""
+            iconColor="#020735"
+            label="Continue with Apple"
+            onPress={() => void handleSocialPress("oauth_apple")}
+          />
         </View>
 
         <View className="mt-auto pt-[86px]">
@@ -192,8 +405,7 @@ export function AuthScreen({ mode }: AuthScreenProps) {
                 Check your email
               </Text>
               <Text className="mt-3 text-center font-poppins text-[16px] leading-[25px] text-[#6E728F]">
-                You received an email. Enter the 6-digit verification code to
-                continue.
+                Enter the 6-digit verification code sent to {emailAddress}.
               </Text>
 
               <TouchableOpacity
@@ -213,13 +425,24 @@ export function AuthScreen({ mode }: AuthScreenProps) {
               <TextInput
                 ref={inputRef}
                 autoFocus
+                editable={!isSubmitting}
                 keyboardType="number-pad"
                 maxLength={verificationCodeLength}
-                onChangeText={handleVerificationChange}
+                onChangeText={(value) => void handleVerificationChange(value)}
                 style={styles.hiddenCodeInput}
                 textContentType="oneTimeCode"
                 value={verificationCode}
               />
+
+              {isSubmitting ? (
+                <ActivityIndicator color="#6A45F6" style={styles.modalLoader} />
+              ) : null}
+
+              {authError ? (
+                <Text className="mt-4 text-center font-poppins-medium text-[14px] leading-[21px] text-[#FF4D4F]">
+                  {authError}
+                </Text>
+              ) : null}
             </View>
           </View>
         </KeyboardAvoidingView>
@@ -231,18 +454,32 @@ export function AuthScreen({ mode }: AuthScreenProps) {
 type SocialAuthButtonProps = {
   icon: string;
   iconColor: string;
+  isLoading: boolean;
   label: string;
+  onPress: () => void;
 };
 
-function SocialAuthButton({ icon, iconColor, label }: SocialAuthButtonProps) {
+function SocialAuthButton({
+  icon,
+  iconColor,
+  isLoading,
+  label,
+  onPress,
+}: SocialAuthButtonProps) {
   return (
-    <TouchableOpacity activeOpacity={0.78} style={styles.socialButton}>
-      <Text
-        className="w-[52px] text-center font-poppins-bold text-[32px] leading-[36px]"
-        style={{ color: iconColor }}
-      >
-        {icon}
-      </Text>
+    <TouchableOpacity activeOpacity={0.78} onPress={onPress} style={styles.socialButton}>
+      {isLoading ? (
+        <View className="w-[52px] items-center">
+          <ActivityIndicator color={iconColor} />
+        </View>
+      ) : (
+        <Text
+          className="w-[52px] text-center font-poppins-bold text-[32px] leading-[36px]"
+          style={{ color: iconColor }}
+        >
+          {icon}
+        </Text>
+      )}
       <Text className="flex-1 font-poppins-medium text-[20px] leading-[25px] text-[#020735]">
         {label}
       </Text>
@@ -347,6 +584,9 @@ const styles = StyleSheet.create({
     borderRadius: 17,
     paddingVertical: 22,
   },
+  primaryButtonDisabled: {
+    opacity: 0.55,
+  },
   socialButton: {
     alignItems: "center",
     borderColor: "#EFF0F5",
@@ -396,5 +636,8 @@ const styles = StyleSheet.create({
     opacity: 0,
     position: "absolute",
     width: 1,
+  },
+  modalLoader: {
+    marginTop: 18,
   },
 });
