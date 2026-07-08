@@ -1,6 +1,8 @@
 import type { ImageSourcePropType } from "react-native";
 
 export const images = {
+  earth: require("../../assets/assets/images/earth.png") as ImageSourcePropType,
+  earthTransparent: require("../../assets/assets/images/earth-transparent.png") as ImageSourcePropType,
   mascotAuth: require("../../assets/assets/images/mascot-auth.png") as ImageSourcePropType,
   mascotLogo: require("../../assets/assets/images/mascot-logo.png") as ImageSourcePropType,
   mascotLogoTransparent: require("../../assets/assets/images/mascot-logo-transparent.png") as ImageSourcePropType,

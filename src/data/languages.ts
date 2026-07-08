@@ -1,0 +1,66 @@
+import type { SupportedLanguage } from "@/types/learning";
+
+export const languages = [
+  {
+    id: "es",
+    name: "Spanish",
+    nativeName: "Español",
+    flagEmoji: "🇪🇸",
+    learnerCountLabel: "28.4M learners",
+    accentColor: "#FF6B35",
+    description: "Start with friendly greetings and everyday phrases.",
+    beginnerGreeting: "¡Hola!",
+  },
+  {
+    id: "fr",
+    name: "French",
+    nativeName: "Français",
+    flagEmoji: "🇫🇷",
+    learnerCountLabel: "19.4M learners",
+    accentColor: "#4F46E5",
+    description: "Learn polite basics for simple conversations.",
+    beginnerGreeting: "Bonjour!",
+  },
+  {
+    id: "ja",
+    name: "Japanese",
+    nativeName: "日本語",
+    flagEmoji: "🇯🇵",
+    learnerCountLabel: "12.7M learners",
+    accentColor: "#EF4444",
+    description: "Practice common greetings with clear pronunciation.",
+    beginnerGreeting: "こんにちは!",
+  },
+  {
+    id: "ko",
+    name: "Korean",
+    nativeName: "한국어",
+    flagEmoji: "🇰🇷",
+    learnerCountLabel: "9.3M learners",
+    accentColor: "#2563EB",
+    description: "Build confidence with everyday Korean basics.",
+    beginnerGreeting: "안녕하세요!",
+  },
+  {
+    id: "de",
+    name: "German",
+    nativeName: "Deutsch",
+    flagEmoji: "🇩🇪",
+    learnerCountLabel: "8.1M learners",
+    accentColor: "#111827",
+    description: "Learn simple German for travel and daily life.",
+    beginnerGreeting: "Hallo!",
+  },
+  {
+    id: "zh",
+    name: "Chinese",
+    nativeName: "中文",
+    flagEmoji: "🇨🇳",
+    learnerCountLabel: "7.4M learners",
+    accentColor: "#DC2626",
+    description: "Practice useful Chinese greetings and phrases.",
+    beginnerGreeting: "你好!",
+  },
+] satisfies SupportedLanguage[];
+
+export const defaultLanguageId = "es" satisfies SupportedLanguage["id"];
