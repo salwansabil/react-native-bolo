@@ -19,6 +19,11 @@ export const colors = {
     surface: "#F6F7FB",
     background: "#FFFFFF",
   },
+  highlight: {
+    bubbleBlue: "#EEF7FF",
+    bubblePurple: "#F6F3FF",
+    bubblePeach: "#FFF5F0",
+  },
 } as const;
 
 export type ColorToken = typeof colors;
