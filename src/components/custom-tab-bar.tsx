@@ -101,7 +101,7 @@ export function CustomTabBar({
           },
         ]}
       >
-        <Animated.View style={[styles.activeCircle, activeCircleStyle]}>
+        <Animated.View pointerEvents="none" style={[styles.activeCircle, activeCircleStyle]}>
           {activeTab ? (
             <SymbolView
               fallback={
@@ -148,7 +148,7 @@ export function CustomTabBar({
 
             return (
               <Pressable
-                accessibilityLabel={options?.tabBarAccessibilityLabel}
+                accessibilityLabel={options?.tabBarAccessibilityLabel ?? tab.label}
                 accessibilityRole="button"
                 accessibilityState={isFocused ? { selected: true } : undefined}
                 key={route.key}

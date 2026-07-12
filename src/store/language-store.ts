@@ -20,7 +20,7 @@ export const useLanguageStore = create<LanguageStore>()(
       hasHydrated: false,
       selectedLanguageId: null,
       clearLanguageStorage: async () => {
-        await AsyncStorage.clear();
+        await AsyncStorage.removeItem(languageStorageName);
         set({ selectedLanguageId: null });
       },
       setHasHydrated: (hasHydrated) => set({ hasHydrated }),
@@ -30,7 +30,13 @@ export const useLanguageStore = create<LanguageStore>()(
     {
       name: languageStorageName,
       onRehydrateStorage: () => (state) => {
-        state?.setHasHydrated(true);
+        const storeState = useLanguageStore.getState();
+
+        if (state?.setHasHydrated) {
+          state.setHasHydrated(true);
+        } else {
+          storeState.setHasHydrated(true);
+        }
       },
       partialize: (state) => ({
         selectedLanguageId: state.selectedLanguageId,
