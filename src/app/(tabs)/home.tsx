@@ -4,6 +4,7 @@ import { lessons } from "@/data/lessons";
 import { units } from "@/data/units";
 import { useLanguageStore } from "@/store/language-store";
 import { useUser } from "@clerk/expo";
+import { useRouter } from "expo-router";
 import { SymbolView, type AndroidSymbol, type SFSymbol } from "expo-symbols";
 import { Image, ScrollView, StyleSheet, Text, TouchableOpacity, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
@@ -36,6 +37,7 @@ const bellIcon = {
 } as const;
 
 export default function HomeScreen() {
+  const router = useRouter();
   const { user } = useUser();
   const selectedLanguageId = useLanguageStore((state) => state.selectedLanguageId);
   const selectedLanguage =
@@ -62,6 +64,18 @@ export default function HomeScreen() {
     (completedLesson?.xpReward ?? 0) + Math.floor((currentLesson?.xpReward ?? 0) / 2),
   );
   const progressPercent = `${(dailyProgressXP / DAILY_GOAL_XP) * 100}%` as `${number}%`;
+
+  const handleContinuePress = () => {
+    router.push("/learn");
+  };
+
+  const handleViewAllPress = () => {
+    router.push("/learn");
+  };
+
+  const handleStartVideoPress = () => {
+    router.push("/ai-teacher");
+  };
 
   return (
     <SafeAreaView style={styles.safeArea}>
@@ -96,23 +110,6 @@ export default function HomeScreen() {
               </Text>
             </View>
 
-            <TouchableOpacity
-              accessibilityLabel="Notifications"
-              activeOpacity={0.7}
-              style={styles.iconButton}
-            >
-              <SymbolView
-                fallback={
-                  <Text className="font-poppins-semibold text-[24px] leading-[28px] text-lingua-text-primary">
-                    ♢
-                  </Text>
-                }
-                name={bellIcon}
-                size={28}
-                tintColor="#1D2744"
-                weight={{ android: { font: 400, name: "regular" }, ios: "regular" }}
-              />
-            </TouchableOpacity>
           </View>
         </View>
 
@@ -156,6 +153,7 @@ export default function HomeScreen() {
             </Text>
             <TouchableOpacity
               activeOpacity={0.84}
+              onPress={handleContinuePress}
               style={styles.continueButton}
             >
               <Text className="font-poppins-semibold text-[18px] leading-[24px] text-lingua-deep-purple">
@@ -181,7 +179,7 @@ export default function HomeScreen() {
             <Text className="font-poppins-semibold text-[21px] leading-[28px] text-lingua-text-primary">
               {"Today's plan"}
             </Text>
-            <TouchableOpacity activeOpacity={0.72}>
+            <TouchableOpacity activeOpacity={0.72} onPress={handleViewAllPress}>
               <Text className="font-poppins-semibold text-[20px] leading-[26px] text-lingua-deep-purple">
                 View all
               </Text>
@@ -230,6 +228,7 @@ export default function HomeScreen() {
           <TouchableOpacity
             accessibilityLabel="Start AI video call"
             activeOpacity={0.82}
+            onPress={handleStartVideoPress}
             style={styles.videoButton}
           >
             <SymbolView
