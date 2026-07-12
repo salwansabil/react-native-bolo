@@ -1,9 +1,12 @@
 import { images } from "@/constants/images";
 import { defaultLanguageId, languages } from "@/data/languages";
-import type { SupportedLanguage } from "@/types/learning";
-import { useRouter } from "expo-router";
+import { useLanguageStore } from "@/store/language-store";
+import type { LanguageCode, SupportedLanguage } from "@/types/learning";
+import { useAuth } from "@clerk/expo";
+import { Redirect, useRouter } from "expo-router";
 import { useMemo, useState } from "react";
 import {
+  ActivityIndicator,
   Image,
   ScrollView,
   StyleSheet,
@@ -16,10 +19,41 @@ import {
 import { SafeAreaView } from "react-native-safe-area-context";
 
 export default function LanguageSelectionScreen() {
+  const { isLoaded, isSignedIn } = useAuth();
+  const hasHydratedLanguageStore = useLanguageStore((state) => state.hasHydrated);
+  const savedLanguageId = useLanguageStore((state) => state.selectedLanguageId);
+
+  if (!isLoaded || !hasHydratedLanguageStore) {
+    return (
+      <SafeAreaView style={styles.safeArea}>
+        <View className="flex-1 items-center justify-center bg-white">
+          <ActivityIndicator color="#5B3BF6" />
+        </View>
+      </SafeAreaView>
+    );
+  }
+
+  if (!isSignedIn) {
+    return <Redirect href="/onboarding" />;
+  }
+
+  return <LanguageSelectionContent savedLanguageId={savedLanguageId} />;
+}
+
+type LanguageSelectionContentProps = {
+  savedLanguageId: LanguageCode | null;
+};
+
+function LanguageSelectionContent({
+  savedLanguageId,
+}: LanguageSelectionContentProps) {
   const router = useRouter();
   const { width } = useWindowDimensions();
   const earthImageSize = width + 180;
-  const [selectedLanguageId, setSelectedLanguageId] = useState(defaultLanguageId);
+  const setSavedLanguageId = useLanguageStore((state) => state.setSelectedLanguageId);
+  const [selectedLanguageId, setSelectedLanguageId] = useState(
+    savedLanguageId ?? defaultLanguageId,
+  );
   const [searchQuery, setSearchQuery] = useState("");
 
   const visibleLanguages = useMemo(() => {
@@ -42,7 +76,8 @@ export default function LanguageSelectionScreen() {
   );
 
   const handleConfirm = () => {
-    router.back();
+    setSavedLanguageId(selectedLanguageId);
+    router.replace("/");
   };
 
   return (
