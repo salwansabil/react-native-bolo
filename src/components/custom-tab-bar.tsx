@@ -1,14 +1,10 @@
 import type { BottomTabBarProps } from "expo-router/build/react-navigation/bottom-tabs";
 import { SymbolView, type AndroidSymbol, type SFSymbol } from "expo-symbols";
-import { useEffect } from "react";
-import { Pressable, StyleSheet, Text, useWindowDimensions, View } from "react-native";
-import Animated, {
-  useAnimatedStyle,
-  useSharedValue,
-  withTiming,
-} from "react-native-reanimated";
+import { Pressable, StyleSheet, Text, View } from "react-native";
 
 type TabConfig = {
+  activeAndroidIcon: AndroidSymbol;
+  activeIcon: SFSymbol;
   androidIcon: AndroidSymbol;
   icon: SFSymbol;
   label: string;
@@ -16,37 +12,44 @@ type TabConfig = {
 
 const TAB_CONFIG: Record<string, TabConfig> = {
   home: {
+    activeAndroidIcon: "home",
+    activeIcon: "house.fill",
     androidIcon: "home",
-    icon: "house.fill",
+    icon: "house",
     label: "Home",
   },
   learn: {
+    activeAndroidIcon: "menu_book",
+    activeIcon: "book.fill",
     androidIcon: "menu_book",
     icon: "book",
     label: "Learn",
   },
   "ai-teacher": {
+    activeAndroidIcon: "school",
+    activeIcon: "brain.head.profile",
     androidIcon: "school",
     icon: "brain.head.profile",
     label: "AI Teacher",
   },
   chat: {
+    activeAndroidIcon: "chat_bubble",
+    activeIcon: "bubble.left.fill",
     androidIcon: "chat_bubble",
     icon: "bubble.left",
     label: "Chat",
   },
   profile: {
+    activeAndroidIcon: "person",
+    activeIcon: "person.fill",
     androidIcon: "person",
     icon: "person",
     label: "Profile",
   },
 };
 
-const BAR_HORIZONTAL_MARGIN = 12;
-const BAR_HORIZONTAL_PADDING = 18;
-const ACTIVE_CIRCLE_SIZE = 46;
 const ACTIVE_COLOR = "#6C4EF5";
-const INACTIVE_COLOR = "#7C839F";
+const INACTIVE_COLOR = "#65708D";
 
 export function CustomTabBar({
   descriptors,
@@ -54,133 +57,79 @@ export function CustomTabBar({
   navigation,
   state,
 }: BottomTabBarProps) {
-  const { width } = useWindowDimensions();
-  const barWidth = width - BAR_HORIZONTAL_MARGIN * 2;
-  const itemWidth =
-    (barWidth - BAR_HORIZONTAL_PADDING * 2) / Math.max(state.routes.length, 1);
-  const activeX = useSharedValue(
-    BAR_HORIZONTAL_PADDING +
-      itemWidth * state.index +
-      (itemWidth - ACTIVE_CIRCLE_SIZE) / 2,
-  );
-
-  useEffect(() => {
-    activeX.value = withTiming(
-      BAR_HORIZONTAL_PADDING +
-        itemWidth * state.index +
-        (itemWidth - ACTIVE_CIRCLE_SIZE) / 2,
-      {
-        duration: 240,
-      },
-    );
-  }, [activeX, itemWidth, state.index]);
-
-  const activeCircleStyle = useAnimatedStyle(() => ({
-    transform: [{ translateX: activeX.value }],
-  }));
-
-  const activeRoute = state.routes[state.index];
-  const activeTab = TAB_CONFIG[activeRoute.name];
-
   return (
     <View
-      pointerEvents="box-none"
       style={[
         styles.wrapper,
         {
-          paddingBottom: Math.max(insets.bottom, 10),
+          paddingBottom: Math.max(insets.bottom, 9),
         },
       ]}
     >
-      <View
-        style={[
-          styles.bar,
-          {
-            marginHorizontal: BAR_HORIZONTAL_MARGIN,
-            paddingHorizontal: BAR_HORIZONTAL_PADDING,
-          },
-        ]}
-      >
-        <Animated.View pointerEvents="none" style={[styles.activeCircle, activeCircleStyle]}>
-          {activeTab ? (
-            <SymbolView
-              fallback={
-                <Text style={styles.activeFallbackIcon}>
-                  {activeTab.label.charAt(0)}
-                </Text>
-              }
-              name={{ android: activeTab.androidIcon, ios: activeTab.icon }}
-              size={25}
-              tintColor="#FFFFFF"
-              weight={{ android: { font: 400, name: "regular" }, ios: "semibold" }}
-            />
-          ) : null}
-        </Animated.View>
+      <View style={styles.bar}>
+        {state.routes.map((route) => {
+          const options = descriptors[route.key]?.options;
+          const isFocused = state.routes[state.index]?.key === route.key;
+          const tab = TAB_CONFIG[route.name];
 
-        <View style={styles.itemsRow}>
-          {state.routes.map((route, index) => {
-            const options = descriptors[route.key]?.options;
-            const isFocused = state.index === index;
-            const tab = TAB_CONFIG[route.name];
+          if (!tab) {
+            return null;
+          }
 
-            if (!tab) {
-              return null;
+          const color = isFocused ? ACTIVE_COLOR : INACTIVE_COLOR;
+
+          const onPress = () => {
+            const event = navigation.emit({
+              canPreventDefault: true,
+              target: route.key,
+              type: "tabPress",
+            });
+
+            if (!isFocused && !event.defaultPrevented) {
+              navigation.navigate(route.name, route.params);
             }
+          };
 
-            const onPress = () => {
-              const event = navigation.emit({
-                canPreventDefault: true,
-                target: route.key,
-                type: "tabPress",
-              });
+          const onLongPress = () => {
+            navigation.emit({
+              target: route.key,
+              type: "tabLongPress",
+            });
+          };
 
-              if (!isFocused && !event.defaultPrevented) {
-                navigation.navigate(route.name, route.params);
-              }
-            };
-
-            const onLongPress = () => {
-              navigation.emit({
-                target: route.key,
-                type: "tabLongPress",
-              });
-            };
-
-            return (
-              <Pressable
-                accessibilityLabel={options?.tabBarAccessibilityLabel ?? tab.label}
-                accessibilityRole="button"
-                accessibilityState={isFocused ? { selected: true } : undefined}
-                key={route.key}
-                onLongPress={onLongPress}
-                onPress={onPress}
-                style={({ pressed }) => [
-                  styles.tabButton,
-                  { opacity: pressed ? 0.75 : 1, width: itemWidth },
-                ]}
-              >
-                {isFocused ? (
-                  <View style={styles.activeIconSpacer} />
-                ) : (
-                  <>
-                    <SymbolView
-                      fallback={
-                        <Text style={styles.inactiveFallbackIcon}>
-                          {tab.label.charAt(0)}
-                        </Text>
-                      }
-                      name={{ android: tab.androidIcon, ios: tab.icon }}
-                      size={28}
-                      tintColor={INACTIVE_COLOR}
-                      weight={{ android: { font: 400, name: "regular" }, ios: "regular" }}
-                    />
-                    <Text style={styles.inactiveLabel}>{tab.label}</Text>
-                  </>
-                )}
-              </Pressable>
-            );
-          })}
-        </View>
+          return (
+            <Pressable
+              accessibilityLabel={options?.tabBarAccessibilityLabel ?? tab.label}
+              accessibilityRole="button"
+              accessibilityState={isFocused ? { selected: true } : undefined}
+              key={route.key}
+              onLongPress={onLongPress}
+              onPress={onPress}
+              style={({ pressed }) => [styles.tabButton, { opacity: pressed ? 0.72 : 1 }]}
+            >
+              <SymbolView
+                fallback={
+                  <Text style={[styles.fallbackIcon, { color }]}>
+                    {tab.label.charAt(0)}
+                  </Text>
+                }
+                name={{
+                  android: isFocused ? tab.activeAndroidIcon : tab.androidIcon,
+                  ios: isFocused ? tab.activeIcon : tab.icon,
+                }}
+                size={31}
+                tintColor={color}
+                weight={{
+                  android: { font: isFocused ? 600 : 400, name: "regular" },
+                  ios: isFocused ? "semibold" : "regular",
+                }}
+              />
+              <Text style={[styles.label, isFocused && styles.activeLabel]}>
+                {tab.label}
+              </Text>
+            </Pressable>
+          );
+        })}
       </View>
     </View>
   );
@@ -188,62 +137,38 @@ export function CustomTabBar({
 
 const styles = StyleSheet.create({
   wrapper: {
-    backgroundColor: "transparent",
+    backgroundColor: "#FFFFFF",
+    borderTopColor: "#F0F2F8",
+    borderTopWidth: 1,
     paddingTop: 8,
   },
   bar: {
     alignItems: "center",
-    backgroundColor: "#FFFFFF",
-    borderCurve: "continuous",
-    borderRadius: 26,
-    boxShadow: "0 -4px 18px rgba(13, 19, 43, 0.08)",
-    height: 88,
-    justifyContent: "center",
-    position: "relative",
-  },
-  activeCircle: {
-    alignItems: "center",
-    backgroundColor: ACTIVE_COLOR,
-    borderRadius: ACTIVE_CIRCLE_SIZE / 2,
-    height: ACTIVE_CIRCLE_SIZE,
-    justifyContent: "center",
-    left: 0,
-    position: "absolute",
-    top: 13,
-    width: ACTIVE_CIRCLE_SIZE,
-    zIndex: 1,
-  },
-  itemsRow: {
-    alignItems: "center",
     flexDirection: "row",
-    height: "100%",
+    height: 72,
+    justifyContent: "space-around",
+    paddingHorizontal: 12,
   },
   tabButton: {
     alignItems: "center",
-    gap: 4,
-    height: 70,
+    flex: 1,
+    gap: 2,
+    height: 62,
     justifyContent: "center",
   },
-  activeIconSpacer: {
-    height: ACTIVE_CIRCLE_SIZE,
-    width: ACTIVE_CIRCLE_SIZE,
-  },
-  inactiveLabel: {
+  label: {
     color: INACTIVE_COLOR,
     fontFamily: "Poppins-Medium",
     fontSize: 13,
     lineHeight: 18,
   },
-  activeFallbackIcon: {
-    color: "#FFFFFF",
-    fontFamily: "Poppins-Bold",
-    fontSize: 18,
-    lineHeight: 24,
+  activeLabel: {
+    color: ACTIVE_COLOR,
+    fontFamily: "Poppins-SemiBold",
   },
-  inactiveFallbackIcon: {
-    color: INACTIVE_COLOR,
+  fallbackIcon: {
     fontFamily: "Poppins-Bold",
-    fontSize: 18,
-    lineHeight: 24,
+    fontSize: 20,
+    lineHeight: 25,
   },
 });

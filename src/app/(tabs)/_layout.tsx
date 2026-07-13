@@ -64,6 +64,12 @@ export default function TabLayout() {
           title: "Profile",
         }}
       />
+      <Tabs.Screen
+        name="lesson/[lessonId]"
+        options={{
+          href: null,
+        }}
+      />
     </Tabs>
   );
 }

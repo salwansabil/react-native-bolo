@@ -32,11 +32,6 @@ const videoIcon = {
   ios: "video.fill",
 } as const;
 
-const bellIcon = {
-  android: "notifications",
-  ios: "bell",
-} as const;
-
 export default function HomeScreen() {
   const router = useRouter();
   const { user } = useUser();
