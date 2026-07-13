@@ -1,4 +1,4 @@
-import { images, getLessonImage } from "@/constants/images";
+import { getLessonImage, images } from "@/constants/images";
 import { languages } from "@/data/languages";
 import { lessons } from "@/data/lessons";
 import { units } from "@/data/units";
@@ -31,7 +31,9 @@ export default function LearnScreen() {
         .filter((lesson): lesson is Lesson => Boolean(lesson))
     : [];
   const activeLesson = unitLessons.find((lesson) => lesson.order === 3) ?? unitLessons[0];
-  const completedCount = unitLessons.length > 0 ? Math.min(3, unitLessons.length) : 0;
+  const completedCount = Object.values(statusByOrder).filter(
+    (status) => status === "completed",
+  ).length;
 
   const handleLessonPress = (lesson: Lesson) => {
     router.push({
