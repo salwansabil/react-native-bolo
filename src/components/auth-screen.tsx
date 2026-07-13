@@ -1,4 +1,5 @@
 import { isClerkAPIResponseError, useSignIn, useSignUp, useSSO } from "@clerk/expo";
+import { posthog } from "@/config/posthog";
 import { images } from "@/constants/images";
 import { useRouter } from "expo-router";
 import { useRef, useState } from "react";
@@ -98,6 +99,8 @@ export function AuthScreen({ mode }: AuthScreenProps) {
 
     try {
       if (isSignUp) {
+        posthog.capture("sign_up_submitted", { method: "email" });
+
         const signUpResult = await signUp.password({
           emailAddress: emailAddress.trim(),
           password,
@@ -106,6 +109,7 @@ export function AuthScreen({ mode }: AuthScreenProps) {
 
         if (signUpError) {
           setAuthError(signUpError);
+          posthog.capture("auth_error_occurred", { mode: "sign_up", method: "email", error: signUpError });
           return;
         }
 
@@ -114,12 +118,15 @@ export function AuthScreen({ mode }: AuthScreenProps) {
 
         if (emailCodeError) {
           setAuthError(emailCodeError);
+          posthog.capture("auth_error_occurred", { mode: "sign_up", method: "email", error: emailCodeError });
           return;
         }
 
         openVerificationModal();
         return;
       }
+
+      posthog.capture("sign_in_submitted", { method: "email" });
 
       const signInResult = await signIn.emailCode.sendCode({
         emailAddress: emailAddress.trim(),
@@ -128,12 +135,15 @@ export function AuthScreen({ mode }: AuthScreenProps) {
 
       if (signInError) {
         setAuthError(signInError);
+        posthog.capture("auth_error_occurred", { mode: "sign_in", method: "email", error: signInError });
         return;
       }
 
       openVerificationModal();
     } catch (error) {
-      setAuthError(getErrorMessage(error));
+      const msg = getErrorMessage(error);
+      setAuthError(msg);
+      posthog.captureException(error instanceof Error ? error : new Error(msg));
     } finally {
       setIsSubmitting(false);
     }
@@ -157,6 +167,7 @@ export function AuthScreen({ mode }: AuthScreenProps) {
 
           if (verifySignUpError) {
             setAuthError(verifySignUpError);
+            posthog.capture("auth_error_occurred", { mode: "sign_up", step: "verification", error: verifySignUpError });
             return;
           }
 
@@ -166,9 +177,11 @@ export function AuthScreen({ mode }: AuthScreenProps) {
 
             if (finalizeError) {
               setAuthError(finalizeError);
+              posthog.capture("auth_error_occurred", { mode: "sign_up", step: "finalize", error: finalizeError });
               return;
             }
 
+            posthog.capture("sign_up_completed", { method: "email" });
             setIsVerificationVisible(false);
             router.replace("/");
             return;
@@ -185,6 +198,7 @@ export function AuthScreen({ mode }: AuthScreenProps) {
 
         if (verifySignInError) {
           setAuthError(verifySignInError);
+          posthog.capture("auth_error_occurred", { mode: "sign_in", step: "verification", error: verifySignInError });
           return;
         }
 
@@ -194,9 +208,11 @@ export function AuthScreen({ mode }: AuthScreenProps) {
 
           if (finalizeError) {
             setAuthError(finalizeError);
+            posthog.capture("auth_error_occurred", { mode: "sign_in", step: "finalize", error: finalizeError });
             return;
           }
 
+          posthog.capture("sign_in_completed", { method: "email" });
           setIsVerificationVisible(false);
           router.replace("/");
           return;
@@ -205,7 +221,9 @@ export function AuthScreen({ mode }: AuthScreenProps) {
         setAuthError("Sign in is not complete yet. Please try again.");
       } catch (error) {
         setVerificationCode("");
-        setAuthError(getErrorMessage(error));
+        const msg = getErrorMessage(error);
+        setAuthError(msg);
+        posthog.captureException(error instanceof Error ? error : new Error(msg));
       } finally {
         setIsSubmitting(false);
       }
@@ -220,15 +238,23 @@ export function AuthScreen({ mode }: AuthScreenProps) {
     setAuthError("");
     setActiveSocialStrategy(strategy);
 
+    const eventName = isSignUp ? "sign_up_social_initiated" : "sign_in_social_initiated";
+    posthog.capture(eventName, { strategy });
+
     try {
       const { createdSessionId, setActive } = await startSSOFlow({ strategy });
 
       if (createdSessionId) {
         await setActive?.({ session: createdSessionId });
+        const completedEvent = isSignUp ? "sign_up_completed" : "sign_in_completed";
+        posthog.capture(completedEvent, { method: strategy });
         router.replace("/");
       }
     } catch (error) {
-      setAuthError(getErrorMessage(error));
+      const msg = getErrorMessage(error);
+      setAuthError(msg);
+      posthog.capture("auth_error_occurred", { mode: isSignUp ? "sign_up" : "sign_in", method: strategy, error: msg });
+      posthog.captureException(error instanceof Error ? error : new Error(msg));
     } finally {
       setActiveSocialStrategy(null);
     }

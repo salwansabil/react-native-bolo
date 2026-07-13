@@ -1,4 +1,5 @@
 import { images } from "@/constants/images";
+import { posthog } from "@/config/posthog";
 import { colors } from "@/theme";
 import { useAuth } from "@clerk/expo";
 import { Redirect, useRouter } from "expo-router";
@@ -121,7 +122,10 @@ export default function OnboardingScreen() {
 
         <TouchableOpacity
           activeOpacity={0.82}
-          onPress={() => router.push("/sign-up")}
+          onPress={() => {
+            posthog.capture("onboarding_get_started_pressed");
+            router.push("/sign-up");
+          }}
           style={styles.getStartedButton}
         >
           <Text className="text-center font-poppins-semibold text-[25px] leading-[31px] text-white">
