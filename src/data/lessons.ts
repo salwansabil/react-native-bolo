@@ -1,11 +1,194 @@
-import type { Lesson } from "@/types/learning";
+import type { LanguageCode, Lesson, LessonKind } from "@/types/learning";
+
+type LessonSeed = {
+  id: string;
+  title: string;
+  description: string;
+  kind: LessonKind;
+  order: number;
+  focusTerm: string;
+  focusTranslation: string;
+  samplePhrase: string;
+  sampleTranslation: string;
+};
+
+const sharedLessonSeeds = [
+  {
+    id: "cafe",
+    title: "At the Café",
+    description: "Order a drink and respond politely in a café.",
+    kind: "ai-teacher",
+    order: 3,
+    focusTerm: "coffee",
+    focusTranslation: "coffee",
+    samplePhrase: "Coffee, please.",
+    sampleTranslation: "Coffee, please.",
+  },
+  {
+    id: "travel-directions",
+    title: "Travel & Directions",
+    description: "Ask where places are and understand simple directions.",
+    kind: "audio",
+    order: 4,
+    focusTerm: "station",
+    focusTranslation: "station",
+    samplePhrase: "Where is the station?",
+    sampleTranslation: "Where is the station?",
+  },
+  {
+    id: "shopping",
+    title: "Shopping",
+    description: "Ask for prices and name everyday items while shopping.",
+    kind: "vocabulary",
+    order: 5,
+    focusTerm: "how much",
+    focusTranslation: "how much",
+    samplePhrase: "How much is this?",
+    sampleTranslation: "How much is this?",
+  },
+  {
+    id: "family-friends",
+    title: "Family & Friends",
+    description: "Talk about people close to you with warm simple phrases.",
+    kind: "chat",
+    order: 6,
+    focusTerm: "friend",
+    focusTranslation: "friend",
+    samplePhrase: "This is my friend.",
+    sampleTranslation: "This is my friend.",
+  },
+] satisfies LessonSeed[];
+
+const firstLessonSeeds = [
+  {
+    id: "greetings",
+    title: "Greetings & Introductions",
+    description: "Say hello, goodbye, and introduce yourself.",
+    kind: "ai-teacher",
+    order: 1,
+    focusTerm: "hello",
+    focusTranslation: "hello",
+    samplePhrase: "Hello, my name is Sam.",
+    sampleTranslation: "Hello, my name is Sam.",
+  },
+  {
+    id: "polite-words",
+    title: "Daily Life",
+    description: "Use polite words in small everyday moments.",
+    kind: "vocabulary",
+    order: 2,
+    focusTerm: "thank you",
+    focusTranslation: "thank you",
+    samplePhrase: "Thank you very much.",
+    sampleTranslation: "Thank you very much.",
+  },
+  ...sharedLessonSeeds,
+] satisfies LessonSeed[];
+
+const extraLessonSeeds = sharedLessonSeeds;
+
+function createLesson(languageId: LanguageCode, unitId: string, seed: LessonSeed): Lesson {
+  const lessonId = `${languageId}-${seed.id}`;
+
+  return {
+    id: lessonId,
+    unitId,
+    languageId,
+    title: seed.title,
+    description: seed.description,
+    kind: seed.kind,
+    level: "beginner",
+    order: seed.order,
+    xpReward: 10,
+    estimatedMinutes: seed.order === 3 ? 6 : 5,
+    goals: [
+      {
+        id: `${lessonId}-goal-1`,
+        text: `Understand one useful ${seed.title.toLowerCase()} phrase.`,
+      },
+      {
+        id: `${lessonId}-goal-2`,
+        text: "Practice saying the phrase with confidence.",
+      },
+    ],
+    vocabulary: [
+      {
+        id: `${lessonId}-vocab-main`,
+        term: seed.focusTerm,
+        translation: seed.focusTranslation,
+        pronunciation: seed.focusTerm,
+        partOfSpeech: "expression",
+        example: seed.samplePhrase,
+      },
+      {
+        id: `${lessonId}-vocab-please`,
+        term: "please",
+        translation: "please",
+        pronunciation: "please",
+        partOfSpeech: "expression",
+        example: `${seed.samplePhrase} please.`,
+      },
+    ],
+    phrases: [
+      {
+        id: `${lessonId}-phrase-main`,
+        text: seed.samplePhrase,
+        translation: seed.sampleTranslation,
+        pronunciation: seed.samplePhrase,
+        context: seed.description,
+      },
+    ],
+    activities: [
+      {
+        id: `${lessonId}-activity-1`,
+        kind: "multiple-choice",
+        prompt: "Choose the matching meaning.",
+        question: `What does "${seed.focusTerm}" mean?`,
+        options: [seed.focusTranslation, "good night", "see you tomorrow"],
+        correctAnswer: seed.focusTranslation,
+      },
+      {
+        id: `${lessonId}-activity-2`,
+        kind: "speaking",
+        prompt: "Practice the phrase out loud.",
+        phrase: seed.samplePhrase,
+        expectedWords: seed.samplePhrase
+          .replace(/[?.!,]/g, "")
+          .toLowerCase()
+          .split(" ")
+          .slice(0, 3),
+      },
+    ],
+    aiTeacherPrompt: {
+      persona: "Friendly language coach for absolute beginners",
+      systemPrompt:
+        "Teach one short phrase at a time with clear English explanations and encouraging practice.",
+      openingLine: `Let's practice ${seed.title.toLowerCase()} with one useful phrase.`,
+      correctionStyle:
+        "Praise the learner first, then correct one small pronunciation detail.",
+      practiceInstructions: [
+        "Model the phrase slowly.",
+        "Ask the learner to repeat it.",
+        "Use the phrase in a tiny roleplay.",
+      ],
+    },
+  };
+}
+
+function createLessons(
+  languageId: LanguageCode,
+  unitId: string,
+  seeds: readonly LessonSeed[],
+) {
+  return seeds.map((seed) => createLesson(languageId, unitId, seed));
+}
 
 export const lessons = [
   {
     id: "es-greetings",
     unitId: "es-basics-1",
     languageId: "es",
-    title: "First Spanish Greetings",
+    title: "Greetings & Introductions",
     description: "Learn how to say hello, goodbye, and introduce yourself.",
     kind: "ai-teacher",
     level: "beginner",
@@ -94,7 +277,7 @@ export const lessons = [
     id: "es-polite-words",
     unitId: "es-basics-1",
     languageId: "es",
-    title: "Please and Thank You",
+    title: "Daily Life",
     description: "Use polite Spanish words in everyday moments.",
     kind: "vocabulary",
     level: "beginner",
@@ -178,7 +361,7 @@ export const lessons = [
     id: "fr-greetings",
     unitId: "fr-basics-1",
     languageId: "fr",
-    title: "First French Greetings",
+    title: "Greetings & Introductions",
     description: "Say hello, goodbye, and introduce yourself in French.",
     kind: "ai-teacher",
     level: "beginner",
@@ -260,7 +443,7 @@ export const lessons = [
     id: "fr-polite-words",
     unitId: "fr-basics-1",
     languageId: "fr",
-    title: "French Polite Words",
+    title: "Daily Life",
     description: "Practice simple polite words for friendly conversations.",
     kind: "vocabulary",
     level: "beginner",
@@ -344,7 +527,7 @@ export const lessons = [
     id: "ja-greetings",
     unitId: "ja-basics-1",
     languageId: "ja",
-    title: "First Japanese Greetings",
+    title: "Greetings & Introductions",
     description: "Learn friendly greetings and a simple self-introduction.",
     kind: "ai-teacher",
     level: "beginner",
@@ -426,7 +609,7 @@ export const lessons = [
     id: "ja-polite-words",
     unitId: "ja-basics-1",
     languageId: "ja",
-    title: "Japanese Polite Words",
+    title: "Daily Life",
     description: "Practice thank you, please, and excuse me in Japanese.",
     kind: "vocabulary",
     level: "beginner",
@@ -507,4 +690,10 @@ export const lessons = [
       ],
     },
   },
+  ...createLessons("es", "es-basics-1", extraLessonSeeds),
+  ...createLessons("fr", "fr-basics-1", extraLessonSeeds),
+  ...createLessons("ja", "ja-basics-1", extraLessonSeeds),
+  ...createLessons("ko", "ko-basics-1", firstLessonSeeds),
+  ...createLessons("de", "de-basics-1", firstLessonSeeds),
+  ...createLessons("zh", "zh-basics-1", firstLessonSeeds),
 ] satisfies Lesson[];
