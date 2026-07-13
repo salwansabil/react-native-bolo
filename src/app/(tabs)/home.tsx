@@ -1,4 +1,5 @@
 import { images } from "@/constants/images";
+import { posthog } from "@/config/posthog";
 import { languages } from "@/data/languages";
 import { lessons } from "@/data/lessons";
 import { units } from "@/data/units";
@@ -66,14 +67,27 @@ export default function HomeScreen() {
   const progressPercent = `${(dailyProgressXP / DAILY_GOAL_XP) * 100}%` as `${number}%`;
 
   const handleContinuePress = () => {
+    posthog.capture("continue_learning_pressed", {
+      language_id: selectedLanguage?.id,
+      language_name: selectedLanguage?.name,
+      unit_order: currentUnit?.order,
+    });
     router.push("/learn");
   };
 
   const handleViewAllPress = () => {
+    posthog.capture("view_all_lessons_pressed", {
+      language_id: selectedLanguage?.id,
+      language_name: selectedLanguage?.name,
+    });
     router.push("/learn");
   };
 
   const handleStartVideoPress = () => {
+    posthog.capture("ai_video_call_started", {
+      language_id: selectedLanguage?.id,
+      language_name: selectedLanguage?.name,
+    });
     router.push("/ai-teacher");
   };
 
