@@ -25,7 +25,7 @@ Follow these steps in order to complete the integration:
 - `references/1-begin.md` - Start the event tracking setup process by analyzing the project and creating an event tracking plan
 - `references/2-edit.md` - Implement PostHog event tracking in the identified files, following best practices and the example project
 - `references/3-revise.md` - Review and fix any errors in the PostHog integration implementation
-- `references/4-conclude.md` - Review and fix any errors in the PostHog integration implementation
+- `references/4-conclude.md` - Create the PostHog dashboard and insights, then generate the setup report
 - `references/react-native.md` - React native - docs
 - `references/identify-users.md` - Identify users - docs
 
@@ -39,14 +39,9 @@ The example project shows the target implementation pattern. Consult the documen
 
 ## Framework guidelines
 
-- posthog-react-native is the React Native SDK package name (same as bare RN)
-- Use expo-constants with app.config.js extras for POSTHOG_PROJECT_TOKEN and POSTHOG_HOST (NOT react-native-config)
+- Use expo-constants with app.config.js extras for POSTHOG_PROJECT_TOKEN and POSTHOG_HOST
 - Access config via `Constants.expoConfig?.extra?.posthogProjectToken` in your posthog.ts config file
 - For expo-router, wrap PostHogProvider in app/_layout.tsx and manually track screens with `posthog.screen(pathname, params)` in a useEffect
-- posthog-react-native is the React Native SDK package name
-- Use react-native-config to load POSTHOG_PROJECT_TOKEN and POSTHOG_HOST from .env (variables are embedded at build time, not runtime)
-- react-native-svg is a required peer dependency of posthog-react-native (used by the surveys feature) and must be installed alongside it
-- Place PostHogProvider INSIDE NavigationContainer for React Navigation v7 compatibility
 - Remember that source code is available in the node_modules directory
 - Check package.json for type checking or build scripts to validate changes
 

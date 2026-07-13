@@ -1,15 +1,15 @@
 import "../../global.css";
 
-import { ClerkProvider, useUser } from "@clerk/expo";
-import { tokenCache } from "@clerk/expo/token-cache";
 import { posthog } from "@/config/posthog";
 import { colors } from "@/theme";
+import { ClerkProvider, useUser } from "@clerk/expo";
+import { tokenCache } from "@clerk/expo/token-cache";
 import { useFonts } from "expo-font";
 import { Stack, useGlobalSearchParams, usePathname } from "expo-router";
 import * as SplashScreen from "expo-splash-screen";
 import { StatusBar } from "expo-status-bar";
-import { useEffect, useRef } from "react";
 import { PostHogProvider } from "posthog-react-native";
+import { useEffect, useRef } from "react";
 
 void SplashScreen.preventAutoHideAsync();
 
@@ -33,9 +33,15 @@ export default function RootLayout() {
 
   useEffect(() => {
     if (previousPathname.current !== pathname) {
+      const safeParams = {
+        lessonId: params.lessonId,
+        mode: params.mode,
+        tab: params.tab,
+      };
+
       posthog.screen(pathname, {
         previous_screen: previousPathname.current ?? null,
-        ...params,
+        ...safeParams,
       });
       previousPathname.current = pathname;
     }

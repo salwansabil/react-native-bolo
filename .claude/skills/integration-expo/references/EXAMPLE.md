@@ -1,7 +1,7 @@
 # PostHog Expo Example Project
 
 Repository: https://github.com/PostHog/context-mill
-Path: example-apps/expo
+Path: basics/expo
 
 ---
 
@@ -109,7 +109,7 @@ npx expo run:android
 
 ### Configuration
 
-PostHog is configured in `src/config/posthog.ts` using environment variables from `app.json`:
+PostHog is configured in `src/config/posthog.ts` using environment variables from `app.config.js` via `extra.posthogProjectToken` and `extra.posthogHost`:
 
 ```typescript
 import Constants from 'expo-constants'

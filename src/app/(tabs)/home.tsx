@@ -1,5 +1,5 @@
-import { images } from "@/constants/images";
 import { posthog } from "@/config/posthog";
+import { images } from "@/constants/images";
 import { languages } from "@/data/languages";
 import { lessons } from "@/data/lessons";
 import { units } from "@/data/units";
@@ -84,7 +84,7 @@ export default function HomeScreen() {
   };
 
   const handleStartVideoPress = () => {
-    posthog.capture("ai_video_call_started", {
+    posthog.capture("ai_video_call_pressed", {
       language_id: selectedLanguage?.id,
       language_name: selectedLanguage?.name,
     });
