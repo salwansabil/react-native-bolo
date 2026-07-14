@@ -187,6 +187,7 @@ function getLessonCallCustomData(
       goals: lesson.goals,
       language: {
         accent_color: language.accentColor,
+        ai_teacher_name: language.aiTeacherName,
         beginner_greeting: language.beginnerGreeting,
         description: language.description,
         id: language.id,
@@ -259,6 +260,15 @@ export async function createLessonCall(request: Request, input: LessonCallInput)
           mic_default_on: false,
           speaker_default_on: true,
         },
+        transcription: {
+          closed_caption_mode: "auto-on",
+          language: "auto",
+          mode: "available",
+          speech_segment_config: {
+            max_speech_caption_ms: 5000,
+            silence_duration_ms: 300,
+          },
+        },
       },
       custom: callCustomData,
     },
@@ -266,6 +276,22 @@ export async function createLessonCall(request: Request, input: LessonCallInput)
 
   await call.update({
     custom: callCustomData,
+    settings_override: {
+      audio: {
+        default_device: "speaker",
+        mic_default_on: false,
+        speaker_default_on: true,
+      },
+      transcription: {
+        closed_caption_mode: "auto-on",
+        language: "auto",
+        mode: "available",
+        speech_segment_config: {
+          max_speech_caption_ms: 5000,
+          silence_duration_ms: 300,
+        },
+      },
+    },
   });
   await call.updateCallMembers({
     update_members: [{ user_id: aiTeacherAgentUserId, role: "admin" }],

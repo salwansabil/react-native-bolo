@@ -16,12 +16,46 @@ type StartAgentResponse = {
   session_started_at: string;
 };
 
+type ApiErrorBody = {
+  detail?: unknown;
+  error?: unknown;
+};
+
+function wait(milliseconds: number) {
+  return new Promise((resolve) => {
+    setTimeout(resolve, milliseconds);
+  });
+}
+
 function getVisionAgentBaseUrl() {
   return (
     process.env.VISION_AGENT_BASE_URL ??
     process.env.VISION_AGENT_URL ??
     (process.env.NODE_ENV !== "production" ? "http://127.0.0.1:8080" : null)
   );
+}
+
+async function getResponseErrorMessage(response: Response, fallback: string) {
+  const body = (await response.json().catch(() => null)) as ApiErrorBody | null;
+  const message = typeof body?.error === "string" ? body.error : body?.detail;
+
+  return typeof message === "string" && message.trim() ? message : fallback;
+}
+
+async function isAgentSessionRunning(
+  baseUrl: string,
+  callId: string,
+  sessionId: string,
+  signal: AbortSignal,
+) {
+  await wait(2500);
+
+  const response = await fetch(
+    `${baseUrl}/calls/${encodeURIComponent(callId)}/sessions/${encodeURIComponent(sessionId)}`,
+    { signal },
+  );
+
+  return response.ok;
 }
 
 function isStartAgentBody(value: unknown): value is StartAgentBody {
@@ -79,10 +113,31 @@ export async function POST(request: Request) {
       );
 
       if (!response.ok) {
-        return Response.json({ error: "Vision Agent could not join the call" }, { status: 502 });
+        const message = await getResponseErrorMessage(
+          response,
+          "Vision Agent could not join the call",
+        );
+
+        return Response.json({ error: message }, { status: 502 });
       }
 
       const agentSession = (await response.json()) as StartAgentResponse;
+      const isRunning = await isAgentSessionRunning(
+        baseUrl,
+        agentSession.call_id,
+        agentSession.session_id,
+        controller.signal,
+      );
+
+      if (!isRunning) {
+        return Response.json(
+          {
+            error:
+              "AI teacher disconnected after starting. Check the Vision Agent logs for OpenAI quota, billing, or model errors.",
+          },
+          { status: 502 },
+        );
+      }
 
       return Response.json({
         callId: agentSession.call_id,

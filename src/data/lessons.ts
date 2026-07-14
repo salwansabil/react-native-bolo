@@ -87,6 +87,12 @@ const firstLessonSeeds = [
 
 const extraLessonSeeds = sharedLessonSeeds;
 
+const pronunciationPracticeInstructions = [
+  "Sound out each target word or phrase using its pronunciation guide before asking the learner to repeat.",
+  "Understanding is the pass condition. If you understand the learner's intended sentence or phrase, praise them briefly and continue without correcting pronunciation or asking them to repeat it.",
+  "Only request another attempt when you genuinely cannot determine the sentence or phrase the learner intended.",
+];
+
 type LocalizedLessonSeed = LessonSeed & {
   politeTerm: string;
   politeTranslation: string;
@@ -412,9 +418,191 @@ function getLocalizedLessonSeed(languageId: LanguageCode, seed: LessonSeed): Loc
   return localizedSeeds[languageId]?.[seed.id] ?? { ...seed, politeTerm: "please", politeTranslation: "please", politeExample: seed.samplePhrase };
 }
 
+type PronunciationGuide = {
+  focusTerm: string;
+  politeTerm: string;
+  samplePhrase: string;
+};
+
+const generatedPronunciationGuides: Partial<Record<LanguageCode, Record<string, PronunciationGuide>>> = {
+  es: {
+    cafe: {
+      focusTerm: "kah-FEH",
+      politeTerm: "por fah-VOR",
+      samplePhrase: "oon kah-FEH, por fah-VOR",
+    },
+    "travel-directions": {
+      focusTerm: "ehs-tah-SYOHN",
+      politeTerm: "por fah-VOR",
+      samplePhrase: "DOHN-deh ehs-TAH lah ehs-tah-SYOHN",
+    },
+    shopping: {
+      focusTerm: "KWAHN-toh KWEHS-tah",
+      politeTerm: "por fah-VOR",
+      samplePhrase: "KWAHN-toh KWEHS-tah EHS-toh",
+    },
+    "family-friends": {
+      focusTerm: "ah-MEE-goh",
+      politeTerm: "por fah-VOR",
+      samplePhrase: "EHS-teh ehs mee ah-MEE-goh",
+    },
+  },
+  fr: {
+    cafe: {
+      focusTerm: "kah-FEH",
+      politeTerm: "seel voo PLEH",
+      samplePhrase: "uhn kah-FEH, seel voo PLEH",
+    },
+    "travel-directions": {
+      focusTerm: "gahr",
+      politeTerm: "seel voo PLEH",
+      samplePhrase: "oo suh troov lah gahr",
+    },
+    shopping: {
+      focusTerm: "kohm-BYEN sah koot",
+      politeTerm: "seel voo PLEH",
+      samplePhrase: "kohm-BYEN sah koot",
+    },
+    "family-friends": {
+      focusTerm: "ah-MEE",
+      politeTerm: "seel voo PLEH",
+      samplePhrase: "seh mohn ah-MEE",
+    },
+  },
+  ja: {
+    cafe: {
+      focusTerm: "koh-hee",
+      politeTerm: "oh-neh-guy-shee-mahss",
+      samplePhrase: "koh-hee oh oh-neh-guy-shee-mahss",
+    },
+    "travel-directions": {
+      focusTerm: "eh-kee",
+      politeTerm: "oh-neh-guy-shee-mahss",
+      samplePhrase: "eh-kee wah doh-koh dess kah",
+    },
+    shopping: {
+      focusTerm: "ee-koo-rah dess kah",
+      politeTerm: "oh-neh-guy-shee-mahss",
+      samplePhrase: "koh-reh wah ee-koo-rah dess kah",
+    },
+    "family-friends": {
+      focusTerm: "toh-moh-dah-chee",
+      politeTerm: "oh-neh-guy-shee-mahss",
+      samplePhrase: "koh-reh wah toh-moh-dah-chee dess",
+    },
+  },
+  ko: {
+    greetings: {
+      focusTerm: "ahn-nyung-hah-seh-yo",
+      politeTerm: "boo-tahk-hahm-nee-dah",
+      samplePhrase: "ahn-nyung-hah-seh-yo, jeh ee-reum-eun Sam-im-nee-dah",
+    },
+    "polite-words": {
+      focusTerm: "gahm-sah-hahm-nee-dah",
+      politeTerm: "boo-tahk-hahm-nee-dah",
+      samplePhrase: "gahm-sah-hahm-nee-dah",
+    },
+    cafe: {
+      focusTerm: "kuh-pee",
+      politeTerm: "boo-tahk-hahm-nee-dah",
+      samplePhrase: "kuh-pee joo-seh-yo",
+    },
+    "travel-directions": {
+      focusTerm: "yuk",
+      politeTerm: "boo-tahk-hahm-nee-dah",
+      samplePhrase: "yuk-ee uh-dee-yeh-yo",
+    },
+    shopping: {
+      focusTerm: "uhl-mah-yeh-yo",
+      politeTerm: "boo-tahk-hahm-nee-dah",
+      samplePhrase: "ee-guh uhl-mah-yeh-yo",
+    },
+    "family-friends": {
+      focusTerm: "chin-goo",
+      politeTerm: "boo-tahk-hahm-nee-dah",
+      samplePhrase: "ee-guhn jeh chin-goo-yeh-yo",
+    },
+  },
+  de: {
+    greetings: {
+      focusTerm: "HAH-loh",
+      politeTerm: "BIT-tuh",
+      samplePhrase: "HAH-loh, ikh HIGH-suh Sam",
+    },
+    "polite-words": {
+      focusTerm: "DAHN-kuh",
+      politeTerm: "BIT-tuh",
+      samplePhrase: "FEE-len DAHNK",
+    },
+    cafe: {
+      focusTerm: "KAH-feh",
+      politeTerm: "BIT-tuh",
+      samplePhrase: "EYE-nen KAH-feh, BIT-tuh",
+    },
+    "travel-directions": {
+      focusTerm: "BAHN-hohf",
+      politeTerm: "BIT-tuh",
+      samplePhrase: "voh ist dair BAHN-hohf",
+    },
+    shopping: {
+      focusTerm: "vee feel KOS-tet dahs",
+      politeTerm: "BIT-tuh",
+      samplePhrase: "vee feel KOS-tet dahs",
+    },
+    "family-friends": {
+      focusTerm: "froynt",
+      politeTerm: "BIT-tuh",
+      samplePhrase: "dahs ist mine froynt",
+    },
+  },
+  zh: {
+    greetings: {
+      focusTerm: "nee how",
+      politeTerm: "ching",
+      samplePhrase: "nee how, woh jyow Sah-moo",
+    },
+    "polite-words": {
+      focusTerm: "shyeh-shyeh",
+      politeTerm: "ching",
+      samplePhrase: "fey-chahng gahn-shyeh",
+    },
+    cafe: {
+      focusTerm: "kah-fey",
+      politeTerm: "ching",
+      samplePhrase: "ee bay kah-fey, shyeh-shyeh",
+    },
+    "travel-directions": {
+      focusTerm: "chuh-jahn",
+      politeTerm: "ching",
+      samplePhrase: "chuh-jahn dzai nah-lee",
+    },
+    shopping: {
+      focusTerm: "dwoh-shao chyen",
+      politeTerm: "ching",
+      samplePhrase: "juh-guh dwoh-shao chyen",
+    },
+    "family-friends": {
+      focusTerm: "pung-yo",
+      politeTerm: "ching",
+      samplePhrase: "juh shih woh duh pung-yo",
+    },
+  },
+};
+
+function getPronunciationGuide(languageId: LanguageCode, seed: LocalizedLessonSeed) {
+  const guide = generatedPronunciationGuides[languageId]?.[seed.id];
+
+  return {
+    focusTerm: guide?.focusTerm ?? seed.focusTerm,
+    politeTerm: guide?.politeTerm ?? seed.politeTerm,
+    samplePhrase: guide?.samplePhrase ?? seed.samplePhrase,
+  };
+}
+
 function createLesson(languageId: LanguageCode, unitId: string, seed: LessonSeed): Lesson {
   const lessonId = `${languageId}-${seed.id}`;
   const localizedSeed = getLocalizedLessonSeed(languageId, seed);
+  const pronunciationGuide = getPronunciationGuide(languageId, localizedSeed);
 
   return {
     id: lessonId,
@@ -442,7 +630,7 @@ function createLesson(languageId: LanguageCode, unitId: string, seed: LessonSeed
         id: `${lessonId}-vocab-main`,
         term: localizedSeed.focusTerm,
         translation: localizedSeed.focusTranslation,
-        pronunciation: localizedSeed.focusTerm,
+        pronunciation: pronunciationGuide.focusTerm,
         partOfSpeech: "expression",
         example: localizedSeed.samplePhrase,
       },
@@ -450,7 +638,7 @@ function createLesson(languageId: LanguageCode, unitId: string, seed: LessonSeed
         id: `${lessonId}-vocab-please`,
         term: localizedSeed.politeTerm,
         translation: localizedSeed.politeTranslation,
-        pronunciation: localizedSeed.politeTerm,
+        pronunciation: pronunciationGuide.politeTerm,
         partOfSpeech: "expression",
         example: localizedSeed.politeExample,
       },
@@ -460,7 +648,7 @@ function createLesson(languageId: LanguageCode, unitId: string, seed: LessonSeed
         id: `${lessonId}-phrase-main`,
         text: localizedSeed.samplePhrase,
         translation: localizedSeed.sampleTranslation,
-        pronunciation: localizedSeed.samplePhrase,
+        pronunciation: pronunciationGuide.samplePhrase,
         context: seed.description,
       },
     ],
@@ -486,16 +674,20 @@ function createLesson(languageId: LanguageCode, unitId: string, seed: LessonSeed
       },
     ],
     aiTeacherPrompt: {
-      persona: "Friendly language coach for absolute beginners",
+      persona: "Warm, energetic real-world language teacher for absolute beginners",
       systemPrompt:
-        "Teach one short phrase at a time with clear English explanations and encouraging practice.",
-      openingLine: `Let's practice ${seed.title.toLowerCase()} with one useful phrase.`,
+        `Stay inside this ${seed.title.toLowerCase()} lesson only. Mostly speak English, introduce only "${localizedSeed.focusTerm}" (${localizedSeed.focusTranslation}), "${localizedSeed.politeTerm}" (${localizedSeed.politeTranslation}), and "${localizedSeed.samplePhrase}" (${localizedSeed.sampleTranslation}) slowly. Sound out each taught word or phrase, then compare the learner's attempt with the target sound. Each turn should include a warm reaction, one tiny explanation or model, and one repeat prompt.`,
+      openingLine:
+        `Let's practice ${seed.title.toLowerCase()} together. "${localizedSeed.samplePhrase}" means "${localizedSeed.sampleTranslation}", so listen once and then try it with me.`,
       correctionStyle:
-        "Praise the learner first, then correct one small pronunciation detail.",
+        "Listen first, repeat back what you heard, compare it to the target pronunciation, then model the same lesson phrase slowly and ask them to try again.",
       practiceInstructions: [
-        "Model the phrase slowly.",
-        "Ask the learner to repeat it.",
-        "Use the phrase in a tiny roleplay.",
+        "Keep each reply to one or two natural, encouraging sentences with a little teacher energy.",
+        "Use only this lesson's goals, vocabulary, phrase, and context.",
+        "Mostly speak English, but say the target phrase slowly and clearly before asking for practice.",
+        ...pronunciationPracticeInstructions,
+        "After each repeat prompt or question, stop speaking and wait for the learner's response.",
+        "Adapt to that response before asking for another repeat or tiny roleplay.",
       ],
     },
   };
@@ -585,17 +777,20 @@ export const lessons = [
       },
     ],
     aiTeacherPrompt: {
-      persona: "Warm Spanish teacher for absolute beginners",
+      persona: "Warm, energetic Spanish teacher for absolute beginners",
       systemPrompt:
-        "Teach one idea at a time. Use short English explanations, then model clear Spanish pronunciation.",
+        "Stay inside this Spanish greetings lesson only. Mostly speak English, introduce only hola, adiós, me llamo, Hola, me llamo Sam, and Adiós, nos vemos with translations. Sound out each taught word or phrase, then compare the learner's attempt with the target sound. Each turn should include a warm reaction, one tiny explanation or model, and one repeat prompt.",
       openingLine:
-        "¡Hola! Today we will practice a friendly Spanish introduction.",
+        "Hola means hello, and me llamo means my name is. Let's say it together slowly: Hola, me llamo Sam.",
       correctionStyle:
-        "Praise the learner first, then correct one pronunciation detail in simple language.",
+        "Listen first, repeat back what you heard, compare it to the target pronunciation, then model the same Spanish phrase slowly and ask them to try again.",
       practiceInstructions: [
-        "Model each phrase slowly.",
-        "Ask the learner to repeat after you.",
-        "End with a quick roleplay where the learner introduces themself.",
+        "Keep each reply to one or two natural, encouraging sentences with a little teacher energy.",
+        "Use only hola, adiós, me llamo, and the two greeting phrases from this lesson.",
+        "Mostly speak English, but say the Spanish phrase slowly and clearly before asking for practice.",
+        ...pronunciationPracticeInstructions,
+        "After each repeat prompt or question, stop speaking and wait for the learner's response.",
+        "Adapt to that response before asking for another repeat or tiny introduction roleplay.",
       ],
     },
   },
@@ -669,17 +864,20 @@ export const lessons = [
       },
     ],
     aiTeacherPrompt: {
-      persona: "Encouraging Spanish conversation coach",
+      persona: "Warm, energetic Spanish conversation coach",
       systemPrompt:
-        "Help the learner use polite Spanish phrases in tiny real-life exchanges.",
+        "Stay inside this Spanish polite words lesson only. Mostly speak English, introduce only por favor, gracias, de nada, and Café, por favor with translations. Sound out each taught word or phrase, then compare the learner's attempt with the target sound. Each turn should include a warm reaction, one tiny explanation or model, and one repeat prompt.",
       openingLine:
-        "Let's make your Spanish sound friendly with please and thank you.",
+        "Let's make your Spanish sound friendly. Por favor means please, so listen once and then try it with me: por favor.",
       correctionStyle:
-        "Keep corrections short and focus on confidence before accuracy.",
+        "Listen first, repeat back what you heard, compare it to the target pronunciation, then model the same polite phrase slowly and ask them to try again.",
       practiceInstructions: [
-        "Practice each phrase as a call and response.",
-        "Create one cafe ordering example.",
-        "Ask the learner to choose the polite reply.",
+        "Keep each reply to one or two natural, encouraging sentences with a little teacher energy.",
+        "Use only por favor, gracias, de nada, and the cafe phrase from this lesson.",
+        "Mostly speak English, but say the Spanish phrase slowly and clearly before asking for practice.",
+        ...pronunciationPracticeInstructions,
+        "After each repeat prompt or question, stop speaking and wait for the learner's response.",
+        "Adapt to that response before asking for another repeat or tiny ordering roleplay.",
       ],
     },
   },
@@ -751,17 +949,20 @@ export const lessons = [
       },
     ],
     aiTeacherPrompt: {
-      persona: "Patient French teacher for first-time learners",
+      persona: "Warm, energetic French teacher for first-time learners",
       systemPrompt:
-        "Teach short French phrases with gentle pronunciation support and simple English explanations.",
+        "Stay inside this French greetings lesson only. Mostly speak English, introduce only bonjour, au revoir, je m'appelle, and Bonjour, je m'appelle Sam with translations. Sound out each taught word or phrase, then compare the learner's attempt with the target sound. Each turn should include a warm reaction, one tiny explanation or model, and one repeat prompt.",
       openingLine:
-        "Bonjour! Today we will learn a simple French introduction.",
+        "Bonjour means hello, and je m'appelle means my name is. Let's say it together slowly: Bonjour, je m'appelle Sam.",
       correctionStyle:
-        "Correct only one sound at a time and invite the learner to try again.",
+        "Listen first, repeat back what you heard, compare it to the target pronunciation, then model the same French phrase slowly and ask them to try again.",
       practiceInstructions: [
-        "Say the phrase naturally, then slowly.",
-        "Have the learner repeat in small chunks.",
-        "Finish with a mini introduction roleplay.",
+        "Keep each reply to one or two natural, encouraging sentences with a little teacher energy.",
+        "Use only bonjour, au revoir, je m'appelle, and the introduction phrase from this lesson.",
+        "Mostly speak English, but say the French phrase slowly and clearly before asking for practice.",
+        ...pronunciationPracticeInstructions,
+        "After each repeat prompt or question, stop speaking and wait for the learner's response.",
+        "Adapt to that response before asking for another repeat or tiny introduction roleplay.",
       ],
     },
   },
@@ -835,17 +1036,20 @@ export const lessons = [
       },
     ],
     aiTeacherPrompt: {
-      persona: "Friendly French cafe conversation coach",
+      persona: "Warm, energetic French cafe conversation coach",
       systemPrompt:
-        "Teach polite French words through short ordering and thank-you examples.",
+        "Stay inside this French polite words lesson only. Mostly speak English, introduce only s'il vous plaît, merci, de rien, and Un café, s'il vous plaît with translations. Sound out each taught word or phrase, then compare the learner's attempt with the target sound. Each turn should include a warm reaction, one tiny explanation or model, and one repeat prompt.",
       openingLine:
-        "Let's practice the words that make French conversations polite.",
+        "Let's make your French sound polite and friendly. Merci means thank you, so listen once and then try it with me: merci.",
       correctionStyle:
-        "Use warm encouragement and repeat the target phrase slowly.",
+        "Listen first, repeat back what you heard, compare it to the target pronunciation, then model the same polite phrase slowly and ask them to try again.",
       practiceInstructions: [
-        "Model the phrase in a cafe setting.",
-        "Ask the learner to repeat merci and s'il vous plaît.",
-        "End with a two-line ordering practice.",
+        "Keep each reply to one or two natural, encouraging sentences with a little teacher energy.",
+        "Use only s'il vous plaît, merci, de rien, and the cafe phrase from this lesson.",
+        "Mostly speak English, but say the French phrase slowly and clearly before asking for practice.",
+        ...pronunciationPracticeInstructions,
+        "After each repeat prompt or question, stop speaking and wait for the learner's response.",
+        "Adapt to that response before asking for another repeat or tiny ordering roleplay.",
       ],
     },
   },
@@ -917,17 +1121,20 @@ export const lessons = [
       },
     ],
     aiTeacherPrompt: {
-      persona: "Gentle Japanese teacher for brand-new learners",
+      persona: "Warm, energetic Japanese teacher for brand-new learners",
       systemPrompt:
-        "Teach Japanese greetings slowly. Explain pronunciation with friendly English guidance.",
+        "Stay inside this Japanese greetings lesson only. Mostly speak English, introduce only こんにちは, さようなら, です, and こんにちは、サムです with translations. Sound out each taught word or phrase, then compare the learner's attempt with the target sound. Each turn should include a warm reaction, one tiny explanation or model, and one repeat prompt.",
       openingLine:
-        "こんにちは! Today we will practice a simple Japanese greeting.",
+        "Konnichiwa means hello, and desu helps make a simple introduction. Let's say it together slowly: konnichiwa, Sam desu.",
       correctionStyle:
-        "Encourage effort, then model the rhythm again slowly.",
+        "Listen first, repeat back what you heard, compare it to the target pronunciation, then model the same Japanese phrase slowly and ask them to try again.",
       practiceInstructions: [
-        "Break the greeting into small sound chunks.",
-        "Ask the learner to repeat after each chunk.",
-        "Practice a short self-introduction using desu.",
+        "Keep each reply to one or two natural, encouraging sentences with a little teacher energy.",
+        "Use only こんにちは, さようなら, です, and the introduction phrase from this lesson.",
+        "Mostly speak English, but say the Japanese phrase slowly and clearly before asking for practice.",
+        ...pronunciationPracticeInstructions,
+        "After each repeat prompt or question, stop speaking and wait for the learner's response.",
+        "Adapt to that response before asking for another repeat or tiny introduction roleplay.",
       ],
     },
   },
@@ -1002,17 +1209,20 @@ export const lessons = [
       },
     ],
     aiTeacherPrompt: {
-      persona: "Kind Japanese pronunciation coach",
+      persona: "Warm, energetic Japanese pronunciation coach",
       systemPrompt:
-        "Teach polite Japanese phrases with a calm pace and beginner-safe examples.",
+        "Stay inside this Japanese polite words lesson only. Mostly speak English, introduce only ありがとう, お願いします, すみません, and 水をお願いします with translations. Sound out each taught word or phrase, then compare the learner's attempt with the target sound. Each turn should include a warm reaction, one tiny explanation or model, and one repeat prompt.",
       openingLine:
-        "Let's practice polite Japanese words you can use right away.",
+        "Let's practice polite Japanese you can use right away. Arigatou means thank you, so listen once and then try it with me: arigatou.",
       correctionStyle:
-        "Repeat the phrase clearly and keep feedback focused on rhythm.",
+        "Listen first, repeat back what you heard, compare it to the target pronunciation, then model the same polite phrase slowly and ask them to try again.",
       practiceInstructions: [
-        "Model each phrase once naturally and once slowly.",
-        "Ask the learner to repeat one phrase at a time.",
-        "Create a tiny request practice with water, please.",
+        "Keep each reply to one or two natural, encouraging sentences with a little teacher energy.",
+        "Use only ありがとう, お願いします, すみません, and the water request phrase from this lesson.",
+        "Mostly speak English, but say the Japanese phrase slowly and clearly before asking for practice.",
+        ...pronunciationPracticeInstructions,
+        "After each repeat prompt or question, stop speaking and wait for the learner's response.",
+        "Adapt to that response before asking for another repeat or tiny request roleplay.",
       ],
     },
   },

@@ -10,6 +10,7 @@ export const languages = [
     accentColor: "#FF6B35",
     description: "Start with friendly greetings and everyday phrases.",
     beginnerGreeting: "¡Hola!",
+    aiTeacherName: "Sofia",
   },
   {
     id: "fr",
@@ -20,6 +21,7 @@ export const languages = [
     accentColor: "#4F46E5",
     description: "Learn polite basics for simple conversations.",
     beginnerGreeting: "Bonjour!",
+    aiTeacherName: "Camille",
   },
   {
     id: "ja",
@@ -30,6 +32,7 @@ export const languages = [
     accentColor: "#EF4444",
     description: "Practice common greetings with clear pronunciation.",
     beginnerGreeting: "こんにちは!",
+    aiTeacherName: "Yuki",
   },
   {
     id: "ko",
@@ -40,6 +43,7 @@ export const languages = [
     accentColor: "#2563EB",
     description: "Build confidence with everyday Korean basics.",
     beginnerGreeting: "안녕하세요!",
+    aiTeacherName: "Minji",
   },
   {
     id: "de",
@@ -50,6 +54,7 @@ export const languages = [
     accentColor: "#111827",
     description: "Learn simple German for travel and daily life.",
     beginnerGreeting: "Hallo!",
+    aiTeacherName: "Lukas",
   },
   {
     id: "zh",
@@ -60,6 +65,7 @@ export const languages = [
     accentColor: "#DC2626",
     description: "Practice useful Chinese greetings and phrases.",
     beginnerGreeting: "你好!",
+    aiTeacherName: "Mei",
   },
 ] satisfies SupportedLanguage[];
 
