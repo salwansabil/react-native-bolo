@@ -1,0 +1,1 @@
+Explain each generated file for this feature in detail, including the reasoning, architectural choices, and design decisions behind the implementation.

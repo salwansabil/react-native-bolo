@@ -44,21 +44,20 @@ export default function HomeScreen() {
   const unitLessons = lessons
     .filter((lesson) => lesson.unitId === currentUnit?.id)
     .sort((firstLesson, secondLesson) => firstLesson.order - secondLesson.order);
-  const completedLesson = unitLessons[0];
-  const currentLesson = unitLessons[1] ?? unitLessons[0];
+  const currentLesson = unitLessons[0];
   const vocabularyCount = currentLesson?.vocabulary.length ?? 0;
   const firstName =
     user?.firstName ??
     user?.username ??
     user?.primaryEmailAddress?.emailAddress.split("@")[0] ??
     "Learner";
+  const localizedGreeting = selectedLanguage.beginnerGreeting
+    .replace(/^¡/, "")
+    .replace(/[!！。]+$/, "");
   const unitLabel = currentUnit
     ? `A1 · Unit ${currentUnit.order}`
     : "A1 · Unit 1";
-  const dailyProgressXP = Math.min(
-    DAILY_GOAL_XP,
-    (completedLesson?.xpReward ?? 0) + Math.floor((currentLesson?.xpReward ?? 0) / 2),
-  );
+  const dailyProgressXP = 0;
   const progressPercent = `${(dailyProgressXP / DAILY_GOAL_XP) * 100}%` as `${number}%`;
 
   const handleContinuePress = () => {
@@ -103,7 +102,7 @@ export default function HomeScreen() {
               className="font-poppins-semibold text-[20px] leading-[26px] text-lingua-text-primary"
               numberOfLines={1}
             >
-              Hola, {firstName}! 👋
+              {localizedGreeting}, {firstName}! 👋
             </Text>
           </View>
 
@@ -199,7 +198,6 @@ export default function HomeScreen() {
             <PlanItem
               description="At the cafe"
               icon={lessonIcon}
-              isComplete
               title="Lesson"
             />
             <PlanItem

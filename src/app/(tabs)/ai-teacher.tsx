@@ -6,18 +6,13 @@ import { useRouter } from "expo-router";
 export default function AiTeacherScreen() {
   const router = useRouter();
   const selectedLanguageId = useLanguageStore((state) => state.selectedLanguageId);
-  const lesson =
-    lessons.find(
-      (item) =>
-        item.languageId === selectedLanguageId &&
-        (item.kind === "ai-teacher" || item.kind === "audio") &&
-        item.order === 3,
-    ) ??
-    lessons.find(
+  const lesson = lessons
+    .filter(
       (item) =>
         item.languageId === selectedLanguageId &&
         (item.kind === "ai-teacher" || item.kind === "audio"),
-    );
+    )
+    .sort((firstLesson, secondLesson) => firstLesson.order - secondLesson.order)[0];
 
   return (
     <AudioLessonCall
@@ -25,6 +20,7 @@ export default function AiTeacherScreen() {
       onBackPress={() => {
         router.replace("/learn");
       }}
+      selectedLanguageId={selectedLanguageId}
     />
   );
 }
