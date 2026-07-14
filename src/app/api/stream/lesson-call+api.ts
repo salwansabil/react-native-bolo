@@ -17,9 +17,16 @@ function isLessonCallBody(value: unknown): value is LessonCallBody {
 }
 
 export async function POST(request: Request) {
-  try {
-    const body: unknown = await request.json();
+  let body: unknown;
 
+  try {
+    body = await request.json();
+  } catch (error) {
+    console.error("Failed to parse lesson call request JSON", error);
+    return Response.json({ error: "Invalid JSON body" }, { status: 400 });
+  }
+
+  try {
     if (!isLessonCallBody(body)) {
       return Response.json({ error: "lessonId and languageId are required" }, { status: 400 });
     }

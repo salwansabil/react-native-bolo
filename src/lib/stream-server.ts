@@ -1,5 +1,5 @@
-import { lessons } from "@/data/lessons";
 import { languages } from "@/data/languages";
+import { lessons } from "@/data/lessons";
 import type { LanguageCode } from "@/types/learning";
 import { createClerkClient, verifyToken } from "@clerk/backend";
 import { StreamClient } from "@stream-io/node-sdk";
@@ -81,24 +81,33 @@ export async function getAuthenticatedStreamUser(request: Request): Promise<Stre
     throw new Response("Unauthorized", { status: 401 });
   }
 
-  const verifiedToken = await verifyToken(token, {
-    secretKey: clerkSecretKey,
-  });
+  try {
+    const verifiedToken = await verifyToken(token, {
+      authorizedParties: process.env.CLERK_AUTHORIZED_PARTIES?.split(",").filter(Boolean),
+      secretKey: clerkSecretKey,
+    });
 
-  const userId = verifiedToken.sub;
+    const userId = verifiedToken.sub;
 
-  if (!userId) {
+    if (!userId) {
+      throw new Response("Unauthorized", { status: 401 });
+    }
+
+    const clerkClient = createClerkClient({ secretKey: clerkSecretKey });
+    const clerkUser = await clerkClient.users.getUser(userId);
+
+    return {
+      id: clerkUser.id,
+      image: clerkUser.imageUrl,
+      name: getDisplayName(clerkUser),
+    };
+  } catch (error) {
+    if (error instanceof Response) {
+      throw error;
+    }
+
     throw new Response("Unauthorized", { status: 401 });
   }
-
-  const clerkClient = createClerkClient({ secretKey: clerkSecretKey });
-  const clerkUser = await clerkClient.users.getUser(userId);
-
-  return {
-    id: clerkUser.id,
-    image: clerkUser.imageUrl,
-    name: getDisplayName(clerkUser),
-  };
 }
 
 function getStreamServerClient() {

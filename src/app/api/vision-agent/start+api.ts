@@ -64,26 +64,35 @@ export async function POST(request: Request) {
       return Response.json({ error: "Vision Agent server is not configured" }, { status: 503 });
     }
 
-    const response = await fetch(
-      `${baseUrl}/calls/${encodeURIComponent(body.callId)}/sessions`,
-      {
-        body: JSON.stringify({ call_type: body.callType }),
-        headers: { "Content-Type": "application/json" },
-        method: "POST",
-      },
-    );
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 10000);
 
-    if (!response.ok) {
-      return Response.json({ error: "Vision Agent could not join the call" }, { status: 502 });
+    try {
+      const response = await fetch(
+        `${baseUrl}/calls/${encodeURIComponent(body.callId)}/sessions`,
+        {
+          body: JSON.stringify({ call_type: body.callType }),
+          headers: { "Content-Type": "application/json" },
+          method: "POST",
+          signal: controller.signal,
+        },
+      );
+
+      if (!response.ok) {
+        return Response.json({ error: "Vision Agent could not join the call" }, { status: 502 });
+      }
+
+      const agentSession = (await response.json()) as StartAgentResponse;
+
+      return Response.json({
+        callId: agentSession.call_id,
+        sessionId: agentSession.session_id,
+        sessionStartedAt: agentSession.session_started_at,
+      });
+    } finally {
+      clearTimeout(timeoutId);
     }
 
-    const agentSession = (await response.json()) as StartAgentResponse;
-
-    return Response.json({
-      callId: agentSession.call_id,
-      sessionId: agentSession.session_id,
-      sessionStartedAt: agentSession.session_started_at,
-    });
   } catch (error) {
     if (error instanceof Response) {
       return error;

@@ -60,20 +60,28 @@ export async function POST(request: Request) {
       return Response.json({ stopped: false }, { status: 202 });
     }
 
-    const response = await fetch(
-      `${baseUrl}/calls/${encodeURIComponent(body.callId)}/sessions/${encodeURIComponent(
-        body.sessionId,
-      )}/close`,
-      {
-        method: "POST",
-      },
-    );
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 10000);
 
-    if (!response.ok && response.status !== 404) {
-      return Response.json({ error: "Vision Agent session could not be stopped" }, { status: 502 });
+    try {
+      const response = await fetch(
+        `${baseUrl}/calls/${encodeURIComponent(body.callId)}/sessions/${encodeURIComponent(
+          body.sessionId,
+        )}/close`,
+        {
+          method: "POST",
+          signal: controller.signal,
+        },
+      );
+
+      if (!response.ok && response.status !== 404) {
+        return Response.json({ error: "Vision Agent session could not be stopped" }, { status: 502 });
+      }
+
+      return Response.json({ stopped: true });
+    } finally {
+      clearTimeout(timeoutId);
     }
-
-    return Response.json({ stopped: true });
   } catch (error) {
     if (error instanceof Response) {
       return error;

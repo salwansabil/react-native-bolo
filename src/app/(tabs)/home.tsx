@@ -12,6 +12,12 @@ import { SafeAreaView } from "react-native-safe-area-context";
 
 const DAILY_GOAL_XP = 20;
 
+type LessonProgressStatus = "completed" | "in-progress" | "upcoming";
+
+const lessonProgressByOrder: Record<number, LessonProgressStatus> = {
+  1: "in-progress",
+};
+
 const lessonIcon = {
   android: "menu_book",
   ios: "book.fill",
@@ -44,7 +50,9 @@ export default function HomeScreen() {
   const unitLessons = lessons
     .filter((lesson) => lesson.unitId === currentUnit?.id)
     .sort((firstLesson, secondLesson) => firstLesson.order - secondLesson.order);
-  const currentLesson = unitLessons[0];
+  const currentLesson = unitLessons.find(
+    (lesson) => lessonProgressByOrder[lesson.order] === "in-progress",
+  ) ?? unitLessons.find((lesson) => lessonProgressByOrder[lesson.order] === "completed") ?? unitLessons[0];
   const vocabularyCount = currentLesson?.vocabulary.length ?? 0;
   const firstName =
     user?.firstName ??
@@ -57,7 +65,9 @@ export default function HomeScreen() {
   const unitLabel = currentUnit
     ? `A1 · Unit ${currentUnit.order}`
     : "A1 · Unit 1";
-  const dailyProgressXP = 0;
+  const dailyProgressXP = currentLesson
+    ? Math.min(DAILY_GOAL_XP, currentLesson.order * 4 + 4)
+    : 0;
   const progressPercent = `${(dailyProgressXP / DAILY_GOAL_XP) * 100}%` as `${number}%`;
 
   const handleContinuePress = () => {

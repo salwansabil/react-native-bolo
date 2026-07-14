@@ -29,8 +29,8 @@ export default function LearnScreen() {
         .filter((lesson): lesson is Lesson => Boolean(lesson))
     : [];
   const activeLesson = unitLessons[0];
-  const completedCount = Object.values(statusByOrder).filter(
-    (status) => status === "completed",
+  const completedCount = unitLessons.filter(
+    (lesson) => statusByOrder[lesson.order] === "completed",
   ).length;
 
   const handleLessonPress = (lesson: Lesson) => {

@@ -169,7 +169,10 @@ def build_instructions(
     return "\n".join(lesson_details)
 
 
-def get_lesson_context(call_custom_data: dict[str, object]) -> dict[str, object]:
+def get_lesson_context(call_custom_data: object) -> dict[str, object]:
+    if not isinstance(call_custom_data, dict):
+        return {}
+
     return get_dict(call_custom_data.get("lesson_context"))
 
 
