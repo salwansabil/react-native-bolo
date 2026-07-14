@@ -12,9 +12,7 @@ import { SafeAreaView } from "react-native-safe-area-context";
 type LessonStatus = "completed" | "in-progress" | "upcoming";
 
 const statusByOrder: Record<number, LessonStatus> = {
-  1: "completed",
-  2: "completed",
-  3: "in-progress",
+  1: "in-progress",
 };
 
 export default function LearnScreen() {
@@ -30,9 +28,9 @@ export default function LearnScreen() {
         .map((lessonId) => lessons.find((lesson) => lesson.id === lessonId))
         .filter((lesson): lesson is Lesson => Boolean(lesson))
     : [];
-  const activeLesson = unitLessons.find((lesson) => lesson.order === 3) ?? unitLessons[0];
-  const completedCount = Object.values(statusByOrder).filter(
-    (status) => status === "completed",
+  const activeLesson = unitLessons[0];
+  const completedCount = unitLessons.filter(
+    (lesson) => statusByOrder[lesson.order] === "completed",
   ).length;
 
   const handleLessonPress = (lesson: Lesson) => {
@@ -40,6 +38,15 @@ export default function LearnScreen() {
       pathname: "/lesson/[lessonId]",
       params: { lessonId: lesson.id },
     });
+  };
+
+  const handleBackPress = () => {
+    if (router.canGoBack()) {
+      router.back();
+      return;
+    }
+
+    router.replace("/home");
   };
 
   return (
@@ -52,7 +59,7 @@ export default function LearnScreen() {
           <TouchableOpacity
             accessibilityLabel="Go back"
             activeOpacity={0.74}
-            onPress={() => router.back()}
+            onPress={handleBackPress}
             style={styles.backButton}
           >
             <SymbolView

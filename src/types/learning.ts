@@ -1,4 +1,4 @@
-export type LanguageCode = "es" | "fr" | "ja" | "ko" | "de" | "zh";
+export type LanguageCode = "de" | "es" | "fr" | "ja" | "ko" | "zh";
 
 export type SkillLevel = "beginner" | "elementary" | "intermediate";
 

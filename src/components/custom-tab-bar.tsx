@@ -50,6 +50,7 @@ const TAB_CONFIG: Record<string, TabConfig> = {
 
 const ACTIVE_COLOR = "#6C4EF5";
 const INACTIVE_COLOR = "#65708D";
+const FULL_SCREEN_ROUTES = new Set(["ai-teacher", "lesson/[lessonId]"]);
 
 export function CustomTabBar({
   descriptors,
@@ -57,6 +58,12 @@ export function CustomTabBar({
   navigation,
   state,
 }: BottomTabBarProps) {
+  const focusedRouteName = state.routes[state.index]?.name;
+
+  if (focusedRouteName && FULL_SCREEN_ROUTES.has(focusedRouteName)) {
+    return null;
+  }
+
   return (
     <View
       style={[

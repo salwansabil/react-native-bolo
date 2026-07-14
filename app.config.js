@@ -8,7 +8,14 @@ export default {
     scheme: "duolingoclone",
     userInterfaceStyle: "automatic",
     ios: {
+      bundleIdentifier: "com.salwansabil.duolingo-clone",
       icon: "./assets/assets/images/icon.png",
+      infoPlist: {
+        NSCameraUsageDescription:
+          "Bolo uses camera access for Stream lesson calls when video lessons are enabled.",
+        NSMicrophoneUsageDescription:
+          "Bolo uses microphone access so you can speak during audio lessons.",
+      },
     },
     android: {
       adaptiveIcon: {
@@ -18,9 +25,10 @@ export default {
         monochromeImage: "./assets/assets/images/android-icon-monochrome.png",
       },
       predictiveBackGestureEnabled: false,
+      permissions: ["CAMERA", "RECORD_AUDIO", "MODIFY_AUDIO_SETTINGS", "BLUETOOTH_CONNECT"],
     },
     web: {
-      output: "static",
+      output: "server",
       favicon: "./assets/assets/images/favicon.png",
     },
     plugins: [
@@ -35,6 +43,24 @@ export default {
       ],
       "expo-secure-store",
       "@clerk/expo",
+      "@stream-io/video-react-native-sdk",
+      [
+        "@config-plugins/react-native-webrtc",
+        {
+          cameraPermission:
+            "Bolo uses camera access for Stream lesson calls when video lessons are enabled.",
+          microphonePermission:
+            "Bolo uses microphone access so you can speak during audio lessons.",
+        },
+      ],
+      [
+        "expo-build-properties",
+        {
+          android: {
+            minSdkVersion: 24,
+          },
+        },
+      ],
     ],
     experiments: {
       typedRoutes: true,

@@ -87,6 +87,15 @@ function LanguageSelectionContent({
     router.replace("/");
   };
 
+  const handleBackPress = () => {
+    if (router.canGoBack()) {
+      router.back();
+      return;
+    }
+
+    router.replace("/");
+  };
+
   return (
     <SafeAreaView style={styles.safeArea}>
       <ScrollView
@@ -97,7 +106,7 @@ function LanguageSelectionContent({
           <TouchableOpacity
             accessibilityLabel="Go back"
             activeOpacity={0.7}
-            onPress={() => router.back()}
+            onPress={handleBackPress}
             style={styles.headerIconButton}
           >
             <Text className="font-poppins-medium text-[42px] leading-[42px] text-lingua-text-primary">

@@ -1,6 +1,11 @@
 {
   "version": 1,
   "skills": {
+    "agent": {
+      "source": "visionagents.ai",
+      "sourceType": "well-known",
+      "computedHash": "0728ff685f5c85f629e27ec13458e2954a86b36b25bd6465e2a84c33e8a14d2c"
+    },
     "eas-app-stores": {
       "source": "expo/skills",
       "sourceType": "github",
@@ -54,6 +59,42 @@
       "sourceType": "github",
       "skillPath": "plugins/expo/skills/expo-upgrade/SKILL.md",
       "computedHash": "2ccb12069eede1187dc9cb857bcb9725054e6e6800a9406fbb25469504f4281e"
+    },
+    "stream": {
+      "source": "getstream/agent-skills",
+      "sourceType": "github",
+      "skillPath": "skills/stream/SKILL.md",
+      "computedHash": "8c5b82d20666632f0b4732a0362c550c8d1eb897cd157b6126cf9aa8b0011378"
+    },
+    "stream-builder": {
+      "source": "getstream/agent-skills",
+      "sourceType": "github",
+      "skillPath": "skills/stream-builder/SKILL.md",
+      "computedHash": "f3fe25bb5688e5e135cf28ebefd5d842fb986f0896630dbbb87a6a00163d56d9"
+    },
+    "stream-docs": {
+      "source": "getstream/agent-skills",
+      "sourceType": "github",
+      "skillPath": "skills/stream-docs/SKILL.md",
+      "computedHash": "f527d6199d59883240ddeac1022b19e231e1868ef8a48713157f172a0c28fc45"
+    },
+    "stream-flutter": {
+      "source": "getstream/agent-skills",
+      "sourceType": "github",
+      "skillPath": "skills/stream-flutter/SKILL.md",
+      "computedHash": "197ba0459a955ec9ddcc606f7ddad5e332c9de8e4f6b85544a48b28bc6b7b65e"
+    },
+    "stream-react": {
+      "source": "getstream/agent-skills",
+      "sourceType": "github",
+      "skillPath": "skills/stream-react/SKILL.md",
+      "computedHash": "371f83b0b916e4047b5f61230d25e7d69a6a119871d8aa6e613a5d460c4453ab"
+    },
+    "stream-react-native": {
+      "source": "getstream/agent-skills",
+      "sourceType": "github",
+      "skillPath": "skills/stream-react-native/SKILL.md",
+      "computedHash": "4c1ba6256efa0eceea5a95af07ca0c85d7b38cd060cf1668ccc827076f0b9c24"
     }
   }
 }

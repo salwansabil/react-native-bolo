@@ -1,6 +1,7 @@
 import "../../global.css";
 
 import { posthog } from "@/config/posthog";
+import { StreamVideoProvider } from "@/components/stream-video-provider";
 import { colors } from "@/theme";
 import { ClerkProvider, useUser } from "@clerk/expo";
 import { tokenCache } from "@clerk/expo/token-cache";
@@ -10,6 +11,7 @@ import * as SplashScreen from "expo-splash-screen";
 import { StatusBar } from "expo-status-bar";
 import { PostHogProvider } from "posthog-react-native";
 import { useEffect, useRef } from "react";
+import { SafeAreaProvider } from "react-native-safe-area-context";
 
 void SplashScreen.preventAutoHideAsync();
 
@@ -68,14 +70,18 @@ export default function RootLayout() {
       }}
     >
       <ClerkProvider publishableKey={publishableKey} tokenCache={tokenCache}>
-        <PostHogClerkSync />
-        <StatusBar style="dark" />
-        <Stack
-          screenOptions={{
-            contentStyle: { backgroundColor: colors.neutral.background },
-            headerShown: false,
-          }}
-        />
+        <SafeAreaProvider>
+          <StreamVideoProvider>
+            <PostHogClerkSync />
+            <StatusBar style="dark" />
+            <Stack
+              screenOptions={{
+                contentStyle: { backgroundColor: colors.neutral.background },
+                headerShown: false,
+              }}
+            />
+          </StreamVideoProvider>
+        </SafeAreaProvider>
       </ClerkProvider>
     </PostHogProvider>
   );
