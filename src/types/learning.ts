@@ -25,6 +25,7 @@ export type SupportedLanguage = {
   accentColor: string;
   description: string;
   beginnerGreeting: string;
+  aiTeacherName: string;
 };
 
 export type LearningUnit = {

@@ -3,6 +3,7 @@ import { languages } from "@/data/languages";
 import { lessons } from "@/data/lessons";
 import { units } from "@/data/units";
 import { useLanguageStore } from "@/store/language-store";
+import { useLessonProgressStore } from "@/store/lesson-progress-store";
 import type { Lesson } from "@/types/learning";
 import { useRouter } from "expo-router";
 import { SymbolView } from "expo-symbols";
@@ -11,13 +12,10 @@ import { SafeAreaView } from "react-native-safe-area-context";
 
 type LessonStatus = "completed" | "in-progress" | "upcoming";
 
-const statusByOrder: Record<number, LessonStatus> = {
-  1: "in-progress",
-};
-
 export default function LearnScreen() {
   const router = useRouter();
   const selectedLanguageId = useLanguageStore((state) => state.selectedLanguageId);
+  const completedLessonIds = useLessonProgressStore((state) => state.completedLessonIds);
   const selectedLanguage =
     languages.find((language) => language.id === selectedLanguageId) ?? languages[0];
   const currentUnit = units
@@ -28,14 +26,27 @@ export default function LearnScreen() {
         .map((lessonId) => lessons.find((lesson) => lesson.id === lessonId))
         .filter((lesson): lesson is Lesson => Boolean(lesson))
     : [];
-  const activeLesson = unitLessons[0];
-  const completedCount = unitLessons.filter(
-    (lesson) => statusByOrder[lesson.order] === "completed",
+  const completedLessonIdSet = new Set(completedLessonIds);
+  const firstIncompleteLesson = unitLessons.find(
+    (lesson) => !completedLessonIdSet.has(lesson.id),
+  );
+  const activeLesson =
+    firstIncompleteLesson ?? unitLessons[unitLessons.length - 1] ?? unitLessons[0];
+  const completedCount = unitLessons.filter((lesson) =>
+    completedLessonIdSet.has(lesson.id),
   ).length;
+
+  const getLessonStatus = (lesson: Lesson): LessonStatus => {
+    if (completedLessonIdSet.has(lesson.id)) {
+      return "completed";
+    }
+
+    return lesson.id === firstIncompleteLesson?.id ? "in-progress" : "upcoming";
+  };
 
   const handleLessonPress = (lesson: Lesson) => {
     router.push({
-      pathname: "/lesson/[lessonId]",
+      pathname: "/ai-teacher",
       params: { lessonId: lesson.id },
     });
   };
@@ -73,8 +84,10 @@ export default function LearnScreen() {
 
           <View className="flex-1 pl-[20px] pt-[4px]">
             <Text
-              className="font-poppins-semibold text-[24px] leading-[31px] text-[#07112F]"
+              className="font-poppins-semibold text-[20px] leading-[26px] text-[#07112F]"
               numberOfLines={1}
+              adjustsFontSizeToFit
+              minimumFontScale={0.82}
             >
               {activeLesson?.title ?? currentUnit?.title ?? "At the Café"}
             </Text>
@@ -95,23 +108,34 @@ export default function LearnScreen() {
         </View>
 
         <View style={styles.hero}>
-          <Image resizeMode="cover" source={images.cafeHero} style={styles.heroImage} />
-          <View className="absolute left-0 top-[76px] h-[142px] w-[196px] rounded-r-full bg-[#DFF3FF]/90" />
-          <View className="absolute bottom-0 left-0 right-0 h-[86px] bg-[#EFD1A5]/80" />
-          <View className="absolute bottom-[50px] right-[-8px] h-[124px] w-[216px] rounded-t-[14px] border-[3px] border-[#8C5636] bg-[#9D643D]" />
-          <View className="absolute bottom-[122px] right-[-5px] h-[28px] w-[218px] rounded-t-[8px] bg-[#C7473B]" />
-          <View className="absolute bottom-[104px] right-[-5px] h-[28px] w-[218px] rounded-b-[14px] bg-[#F17677]" />
-          <Text className="absolute bottom-[128px] right-[78px] rotate-[-2deg] font-poppins-bold text-[20px] leading-[25px] text-[#F7D15C]">
-            CAFÉ
-          </Text>
-          <View className="absolute bottom-[42px] left-[178px] h-[49px] w-[112px] rounded-full bg-[#9C6B42]" />
+          <View style={styles.heroBackdrop} />
+          <View className="absolute bottom-0 left-0 right-0 h-[96px] bg-[#DDF7EF]" />
+          <View className="absolute left-[-28px] top-[72px] h-[104px] w-[170px] rounded-r-[44px] bg-[#BEEBFF]/75" />
+          <View className="absolute right-[-18px] top-[22px] h-[72px] w-[176px] rounded-l-[28px] bg-[#FFE9A9]/85" />
           <Image
-            className="absolute bottom-[40px] left-[110px] h-[162px] w-[162px]"
+            resizeMode="contain"
+            source={images.earthTransparent}
+            style={styles.heroGlobe}
+          />
+          <View style={styles.heroMessageCard}>
+            <Text className="font-poppins-bold text-[18px] leading-[23px] text-[#07112F]">
+              Ready to learn
+            </Text>
+            <Text
+              className="font-poppins-medium text-[14px] leading-[19px] text-[#68718E]"
+              numberOfLines={1}
+            >
+              Practice is ready.
+            </Text>
+          </View>
+          <View style={styles.heroFlagCard}>
+            <Text className="text-[28px] leading-[34px]">{selectedLanguage.flagEmoji}</Text>
+          </View>
+          <Image
+            className="absolute bottom-[20px] left-[118px] h-[160px] w-[160px]"
             resizeMode="contain"
             source={images.mascotWelcomeTransparent}
           />
-          <View className="absolute bottom-[72px] left-[234px] h-[30px] w-[42px] rounded-full bg-[#F4D7A1]" />
-          <View className="absolute bottom-[85px] left-[238px] h-[12px] w-[35px] rounded-b-full bg-[#FFFFFF]" />
         </View>
 
         <View style={styles.segmentedControl}>
@@ -133,7 +157,7 @@ export default function LearnScreen() {
               key={lesson.id}
               lesson={lesson}
               onPress={() => handleLessonPress(lesson)}
-              status={statusByOrder[lesson.order] ?? "upcoming"}
+              status={getLessonStatus(lesson)}
             />
           ))}
         </View>
@@ -168,21 +192,23 @@ function LessonCard({ lesson, onPress, status }: LessonCardProps) {
           Lesson {lesson.order}
         </Text>
         <Text
-          className="font-poppins-semibold text-[20px] leading-[26px] text-[#07112F]"
+          className="font-poppins-semibold text-[18px] leading-[24px] text-[#07112F]"
           numberOfLines={1}
+          adjustsFontSizeToFit
+          minimumFontScale={0.84}
         >
           {lesson.title}
         </Text>
-        {!isComplete ? (
-          <Text
-            className={[
-              "font-poppins-semibold text-[16px] leading-[21px]",
-              isActive ? "text-[#5B3BF6]" : "text-[#8A91AA]",
-            ].join(" ")}
-          >
-            {isActive ? "In progress" : "0 / 6 lessons"}
-          </Text>
-        ) : null}
+        <Text
+          className={[
+            "font-poppins-semibold text-[16px] leading-[21px]",
+            isActive ? "text-[#5B3BF6]" : "text-[#8A91AA]",
+          ].join(" ")}
+          numberOfLines={1}
+        >
+          {isComplete ? "Completed" : isActive ? "In progress" : "0 / 6 lessons"} •{" "}
+          {lesson.xpReward} XP
+        </Text>
       </View>
 
       <View className="w-[58px] items-center justify-center">
@@ -225,16 +251,52 @@ const styles = StyleSheet.create({
     width: 38,
   },
   hero: {
+    backgroundColor: "#F6FBFF",
     height: 278,
     marginTop: 4,
     overflow: "hidden",
     position: "relative",
   },
-  heroImage: {
+  heroBackdrop: {
+    backgroundColor: "#EAF8FF",
     height: "100%",
-    opacity: 0.32,
     position: "absolute",
     width: "100%",
+  },
+  heroFlagCard: {
+    alignItems: "center",
+    backgroundColor: "rgba(255, 255, 255, 0.88)",
+    borderColor: "rgba(91, 59, 246, 0.12)",
+    borderRadius: 18,
+    borderWidth: 1,
+    boxShadow: "0 10px 24px rgba(42, 39, 77, 0.12)",
+    height: 54,
+    justifyContent: "center",
+    position: "absolute",
+    right: 38,
+    top: 36,
+    width: 58,
+  },
+  heroGlobe: {
+    height: 186,
+    opacity: 0.2,
+    position: "absolute",
+    right: -22,
+    top: 52,
+    width: 186,
+  },
+  heroMessageCard: {
+    backgroundColor: "rgba(255, 255, 255, 0.9)",
+    borderColor: "rgba(91, 59, 246, 0.1)",
+    borderRadius: 20,
+    borderWidth: 1,
+    boxShadow: "0 12px 28px rgba(42, 39, 77, 0.12)",
+    left: 24,
+    paddingHorizontal: 18,
+    paddingVertical: 14,
+    position: "absolute",
+    top: 32,
+    width: 198,
   },
   segmentedControl: {
     alignItems: "center",

@@ -2,6 +2,7 @@ import "../../global.css";
 
 import { posthog } from "@/config/posthog";
 import { StreamVideoProvider } from "@/components/stream-video-provider";
+import { useLanguageStore } from "@/store/language-store";
 import { colors } from "@/theme";
 import { ClerkProvider, useUser } from "@clerk/expo";
 import { tokenCache } from "@clerk/expo/token-cache";
@@ -89,23 +90,26 @@ export default function RootLayout() {
 
 function PostHogClerkSync() {
   const { user, isLoaded } = useUser();
+  const hasHydratedLanguageStore = useLanguageStore((state) => state.hasHydrated);
+  const selectedLanguageId = useLanguageStore((state) => state.selectedLanguageId);
 
   useEffect(() => {
-    if (!isLoaded) return;
+    if (!isLoaded || !hasHydratedLanguageStore) return;
 
     if (user) {
       posthog.identify(user.id, {
         $set: {
           name: user.fullName ?? user.username ?? null,
+          preferred_language: selectedLanguageId,
         },
         $set_once: {
-          first_sign_in_date: new Date().toISOString(),
+          signup_date: new Date().toISOString(),
         },
       });
     } else {
       posthog.reset();
     }
-  }, [isLoaded, user]);
+  }, [hasHydratedLanguageStore, isLoaded, selectedLanguageId, user]);
 
   return null;
 }

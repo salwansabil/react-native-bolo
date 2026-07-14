@@ -10,9 +10,6 @@ const lessonImageUrls = [
 ] as const;
 
 export const images = {
-  cafeHero: {
-    uri: "https://images.unsplash.com/photo-1559925393-8be0ec4767c8?w=1000&h=640&fit=crop",
-  } as ImageSourcePropType,
   earth: require("../../assets/assets/images/earth.png") as ImageSourcePropType,
   earthTransparent: require("../../assets/assets/images/earth-transparent.png") as ImageSourcePropType,
   lessonImages: {

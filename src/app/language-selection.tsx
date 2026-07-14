@@ -2,6 +2,7 @@ import { images } from "@/constants/images";
 import { posthog } from "@/config/posthog";
 import { defaultLanguageId, languages } from "@/data/languages";
 import { useLanguageStore } from "@/store/language-store";
+import { useStreakStore } from "@/store/streak-store";
 import type { LanguageCode, SupportedLanguage } from "@/types/learning";
 import { useAuth } from "@clerk/expo";
 import { Redirect, useRouter } from "expo-router";
@@ -22,9 +23,10 @@ import { SafeAreaView } from "react-native-safe-area-context";
 export default function LanguageSelectionScreen() {
   const { isLoaded, isSignedIn } = useAuth();
   const hasHydratedLanguageStore = useLanguageStore((state) => state.hasHydrated);
+  const hasHydratedStreakStore = useStreakStore((state) => state.hasHydrated);
   const savedLanguageId = useLanguageStore((state) => state.selectedLanguageId);
 
-  if (!isLoaded || !hasHydratedLanguageStore) {
+  if (!isLoaded || !hasHydratedLanguageStore || !hasHydratedStreakStore) {
     return (
       <SafeAreaView style={styles.safeArea}>
         <View className="flex-1 items-center justify-center bg-white">
@@ -52,6 +54,7 @@ function LanguageSelectionContent({
   const { width } = useWindowDimensions();
   const earthImageSize = width + 180;
   const setSavedLanguageId = useLanguageStore((state) => state.setSelectedLanguageId);
+  const startStreak = useStreakStore((state) => state.startStreak);
   const [selectedLanguageId, setSelectedLanguageId] = useState(
     savedLanguageId ?? defaultLanguageId,
   );
@@ -78,12 +81,15 @@ function LanguageSelectionContent({
 
   const handleConfirm = () => {
     const selectedLanguage = languages.find((l) => l.id === selectedLanguageId);
-    posthog.capture("language_confirmed", {
-      language_id: selectedLanguageId,
-      language_name: selectedLanguage?.name ?? null,
-      is_first_selection: !savedLanguageId,
+
+    if (!selectedLanguage) return;
+
+    posthog.capture("language_selected", {
+      language_code: selectedLanguage.id,
+      language_name: selectedLanguage.name,
     });
     setSavedLanguageId(selectedLanguageId);
+    startStreak();
     router.replace("/");
   };
 

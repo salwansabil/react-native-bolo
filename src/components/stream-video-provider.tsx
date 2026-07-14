@@ -5,11 +5,22 @@ import { NativeModules } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 type StreamVideoClient = import("@stream-io/video-react-native-sdk").StreamVideoClient;
+type StreamCallComponent = React.ComponentType<{
+  children: React.ReactNode;
+  call: import("@stream-io/video-react-native-sdk").Call;
+}>;
+type ParticipantViewComponent = React.ComponentType<
+  import("@stream-io/video-react-native-sdk").ParticipantViewProps
+>;
 type StreamVideoComponent = React.ComponentType<{
   children: React.ReactNode;
   client: StreamVideoClient;
   style?: unknown;
 }>;
+type StreamCallManager = Pick<
+  typeof import("@stream-io/video-react-native-sdk").callManager,
+  "speaker" | "start" | "stop"
+>;
 type TokenProvider = import("@stream-io/video-react-native-sdk").TokenProvider;
 type User = import("@stream-io/video-react-native-sdk").User;
 
@@ -21,12 +32,19 @@ type StreamSession = {
   userName: string;
 };
 
+type ApiErrorBody = {
+  error?: unknown;
+};
+
 type StreamVideoContextValue = {
   canUseNativeSdk: boolean;
   client: StreamVideoClient | undefined;
   connectClient: () => Promise<StreamVideoClient>;
   errorMessage: string | null;
   isLoading: boolean;
+  ParticipantView: ParticipantViewComponent | undefined;
+  callManager: StreamCallManager | undefined;
+  StreamCall: StreamCallComponent | undefined;
   user: User | null;
 };
 
@@ -38,12 +56,21 @@ const StreamVideoContext = createContext<StreamVideoContextValue>({
   },
   errorMessage: null,
   isLoading: false,
+  ParticipantView: undefined,
+  callManager: undefined,
+  StreamCall: undefined,
   user: null,
 });
 
 async function parseStreamSession(response: Response): Promise<StreamSession> {
   if (!response.ok) {
-    throw new Error("Stream session could not be created.");
+    const body = (await response.json().catch(() => null)) as ApiErrorBody | null;
+    const message =
+      typeof body?.error === "string" && body.error.trim()
+        ? body.error
+        : "Stream session could not be created.";
+
+    throw new Error(message);
   }
 
   return response.json() as Promise<StreamSession>;
@@ -60,7 +87,10 @@ export function StreamVideoProvider({ children }: { children: React.ReactNode })
   const clientRef = useRef<StreamVideoClient | undefined>(undefined);
   const canUseNativeSdk = hasStreamNativeModules();
   const [client, setClient] = useState<StreamVideoClient>();
+  const [ParticipantView, setParticipantView] = useState<ParticipantViewComponent>();
+  const [StreamCall, setStreamCall] = useState<StreamCallComponent>();
   const [StreamVideo, setStreamVideo] = useState<StreamVideoComponent>();
+  const [callManager, setCallManager] = useState<StreamCallManager>();
   const [streamUser, setStreamUser] = useState<User | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
@@ -121,7 +151,10 @@ export function StreamVideoProvider({ children }: { children: React.ReactNode })
       clientRef.current = nextClient;
       setStreamUser(user);
       setClient(nextClient);
+      setParticipantView(() => streamSdk.ParticipantView as ParticipantViewComponent);
+      setStreamCall(() => streamSdk.StreamCall as StreamCallComponent);
       setStreamVideo(() => streamSdk.StreamVideo as StreamVideoComponent);
+      setCallManager(streamSdk.callManager);
 
       return nextClient;
     } catch (error) {
@@ -129,7 +162,10 @@ export function StreamVideoProvider({ children }: { children: React.ReactNode })
 
       setErrorMessage(message);
       setClient(undefined);
+      setParticipantView(undefined);
+      setStreamCall(undefined);
       setStreamVideo(undefined);
+      setCallManager(undefined);
       setStreamUser(null);
       throw error;
     } finally {
@@ -151,6 +187,9 @@ export function StreamVideoProvider({ children }: { children: React.ReactNode })
     connectClient,
     errorMessage,
     isLoading,
+    ParticipantView,
+    callManager,
+    StreamCall,
     user: streamUser,
   };
   const streamTheme = useMemo(

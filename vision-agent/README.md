@@ -4,8 +4,9 @@ Voice-only AI language teacher for this Expo teaching project.
 
 ## Environment
 
-The service loads credentials from the parent `.env`, then optionally from
-`vision-agent/.env` for local overrides:
+The service loads credentials from the parent `.env` / `.env.local`, then
+optionally from `vision-agent/.env` / `vision-agent/.env.local` for local
+overrides:
 
 ```bash
 STREAM_API_KEY=...

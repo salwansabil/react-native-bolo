@@ -4,19 +4,16 @@ import { languages } from "@/data/languages";
 import { lessons } from "@/data/lessons";
 import { units } from "@/data/units";
 import { useLanguageStore } from "@/store/language-store";
+import { useLessonProgressStore } from "@/store/lesson-progress-store";
+import { useStreakStore } from "@/store/streak-store";
 import { useUser } from "@clerk/expo";
 import { useRouter } from "expo-router";
 import { SymbolView, type AndroidSymbol, type SFSymbol } from "expo-symbols";
-import { Image, ScrollView, StyleSheet, Text, TouchableOpacity, View } from "react-native";
+import { AppState, Image, ScrollView, StyleSheet, Text, TouchableOpacity, View } from "react-native";
+import { useEffect } from "react";
 import { SafeAreaView } from "react-native-safe-area-context";
 
 const DAILY_GOAL_XP = 20;
-
-type LessonProgressStatus = "completed" | "in-progress" | "upcoming";
-
-const lessonProgressByOrder: Record<number, LessonProgressStatus> = {
-  1: "in-progress",
-};
 
 const lessonIcon = {
   android: "menu_book",
@@ -42,6 +39,11 @@ export default function HomeScreen() {
   const router = useRouter();
   const { user } = useUser();
   const selectedLanguageId = useLanguageStore((state) => state.selectedLanguageId);
+  const completedLessonIds = useLessonProgressStore((state) => state.completedLessonIds);
+  const totalXp = useLessonProgressStore((state) => state.totalXp);
+  const hasHydratedStreak = useStreakStore((state) => state.hasHydrated);
+  const streak = useStreakStore((state) => state.streak);
+  const syncStreak = useStreakStore((state) => state.syncStreak);
   const selectedLanguage =
     languages.find((language) => language.id === selectedLanguageId) ?? languages[0];
   const currentUnit = units
@@ -50,9 +52,13 @@ export default function HomeScreen() {
   const unitLessons = lessons
     .filter((lesson) => lesson.unitId === currentUnit?.id)
     .sort((firstLesson, secondLesson) => firstLesson.order - secondLesson.order);
-  const currentLesson = unitLessons.find(
-    (lesson) => lessonProgressByOrder[lesson.order] === "in-progress",
-  ) ?? unitLessons.find((lesson) => lessonProgressByOrder[lesson.order] === "completed") ?? unitLessons[0];
+  const completedLessonIdSet = new Set(completedLessonIds);
+  const currentLesson =
+    unitLessons.find((lesson) => !completedLessonIdSet.has(lesson.id)) ??
+    unitLessons[unitLessons.length - 1] ??
+    unitLessons[0];
+  const dailyLifeLesson = unitLessons.find((lesson) => lesson.order === 2);
+  const cafeLesson = unitLessons.find((lesson) => lesson.order === 3);
   const vocabularyCount = currentLesson?.vocabulary.length ?? 0;
   const firstName =
     user?.firstName ??
@@ -65,10 +71,24 @@ export default function HomeScreen() {
   const unitLabel = currentUnit
     ? `A1 · Unit ${currentUnit.order}`
     : "A1 · Unit 1";
-  const dailyProgressXP = currentLesson
-    ? Math.min(DAILY_GOAL_XP, currentLesson.order * 4 + 4)
-    : 0;
-  const progressPercent = `${(dailyProgressXP / DAILY_GOAL_XP) * 100}%` as `${number}%`;
+  const unitGoalXp = Math.max(DAILY_GOAL_XP, unitLessons.length * 10);
+  const progressPercent = `${Math.min(100, (totalXp / unitGoalXp) * 100)}%` as `${number}%`;
+
+  useEffect(() => {
+    if (!hasHydratedStreak) {
+      return;
+    }
+
+    syncStreak();
+
+    const subscription = AppState.addEventListener("change", (nextState) => {
+      if (nextState === "active") {
+        syncStreak();
+      }
+    });
+
+    return () => subscription.remove();
+  }, [hasHydratedStreak, syncStreak]);
 
   const handleContinuePress = () => {
     posthog.capture("continue_learning_pressed", {
@@ -93,6 +113,41 @@ export default function HomeScreen() {
       language_name: selectedLanguage?.name,
     });
     router.push("/ai-teacher");
+  };
+
+  const handleLessonPress = () => {
+    if (!cafeLesson) {
+      return;
+    }
+
+    posthog.capture("lesson_selected", {
+      language_id: selectedLanguage.id,
+      lesson_id: cafeLesson.id,
+      lesson_order: cafeLesson.order,
+      lesson_title: cafeLesson.title,
+    });
+    router.push({
+      pathname: "/lesson/[lessonId]",
+      params: { lessonId: cafeLesson.id },
+    });
+  };
+
+  const handleConversationPress = () => {
+    if (!dailyLifeLesson) {
+      return;
+    }
+
+    posthog.capture("lesson_selected", {
+      language_id: selectedLanguage.id,
+      lesson_id: dailyLifeLesson.id,
+      lesson_order: dailyLifeLesson.order,
+      lesson_title: dailyLifeLesson.title,
+      source: "home_ai_conversation",
+    });
+    router.push({
+      pathname: "/lesson/[lessonId]",
+      params: { lessonId: dailyLifeLesson.id },
+    });
   };
 
   return (
@@ -124,7 +179,7 @@ export default function HomeScreen() {
                 source={images.streakFire}
               />
               <Text className="font-poppins-semibold text-[19px] leading-[25px] text-[#37405C]">
-                12
+                {Math.max(streak, 1)}
               </Text>
             </View>
 
@@ -134,13 +189,13 @@ export default function HomeScreen() {
         <View style={styles.dailyGoalCard}>
           <View className="flex-1 gap-[12px]">
             <Text className="font-poppins-semibold text-[18px] leading-[24px] text-[#28314E]">
-              Daily goal
+              XP earned
             </Text>
             <Text className="font-poppins-bold text-[32px] leading-[38px] text-[#121A35]">
-              {dailyProgressXP}
+              {totalXp}
               <Text className="font-poppins-semibold text-[19px] leading-[25px] text-[#7B859E]">
                 {" "}
-                / {DAILY_GOAL_XP} XP
+                / {unitGoalXp} XP
               </Text>
             </Text>
             <View className="h-[9px] w-full overflow-hidden rounded-full bg-[#FFE6CE]">
@@ -206,13 +261,19 @@ export default function HomeScreen() {
 
           <View className="gap-[26px]">
             <PlanItem
-              description="At the cafe"
+              description={cafeLesson?.title ?? "At the Café"}
               icon={lessonIcon}
+              isComplete={Boolean(cafeLesson && completedLessonIdSet.has(cafeLesson.id))}
+              onPress={handleLessonPress}
               title="Lesson"
             />
             <PlanItem
-              description="Talk about your day"
+              description={dailyLifeLesson?.title ?? "Daily Life"}
               icon={audioIcon}
+              isComplete={Boolean(
+                dailyLifeLesson && completedLessonIdSet.has(dailyLifeLesson.id),
+              )}
+              onPress={handleConversationPress}
               title="AI Conversation"
             />
             <PlanItem
@@ -273,12 +334,19 @@ type PlanItemProps = {
     ios: SFSymbol;
   };
   isComplete?: boolean;
+  onPress?: () => void;
   title: string;
 };
 
-function PlanItem({ description, icon, isComplete = false, title }: PlanItemProps) {
+function PlanItem({ description, icon, isComplete = false, onPress, title }: PlanItemProps) {
   return (
-    <View className="flex-row items-center gap-[22px]">
+    <TouchableOpacity
+      accessibilityRole={onPress ? "button" : undefined}
+      activeOpacity={onPress ? 0.72 : 1}
+      className="flex-row items-center gap-[22px]"
+      disabled={!onPress}
+      onPress={onPress}
+    >
       <View style={styles.planIcon}>
         <SymbolView
           fallback={
@@ -312,7 +380,7 @@ function PlanItem({ description, icon, isComplete = false, title }: PlanItemProp
           </Text>
         ) : null}
       </View>
-    </View>
+    </TouchableOpacity>
   );
 }
 
