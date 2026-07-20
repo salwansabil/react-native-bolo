@@ -36,6 +36,37 @@ type ApiErrorBody = {
   error?: unknown;
 };
 
+async function fetchWithTimeout(url: string, options: RequestInit, timeoutMs = 15000) {
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
+
+  try {
+    return await fetch(url, { ...options, signal: controller.signal });
+  } catch (error) {
+    if (error instanceof Error && error.name === "AbortError") {
+      throw new Error("The Stream session server took too long to respond.");
+    }
+
+    throw error;
+  } finally {
+    clearTimeout(timeoutId);
+  }
+}
+
+function getClerkTokenWithTimeout(getToken: () => Promise<string | null>) {
+  let timeoutId: ReturnType<typeof setTimeout> | undefined;
+  const timeout = new Promise<never>((_, reject) => {
+    timeoutId = setTimeout(
+      () => reject(new Error("Clerk authentication timed out. Sign out, sign back in, and try again.")),
+      10000,
+    );
+  });
+
+  return Promise.race([getToken(), timeout]).finally(() => {
+    if (timeoutId) clearTimeout(timeoutId);
+  });
+}
+
 type StreamVideoContextValue = {
   canUseNativeSdk: boolean;
   client: StreamVideoClient | undefined;
@@ -96,13 +127,13 @@ export function StreamVideoProvider({ children }: { children: React.ReactNode })
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
   async function fetchStreamSession() {
-    const clerkToken = await getToken();
+    const clerkToken = await getClerkTokenWithTimeout(getToken);
 
     if (!clerkToken) {
       throw new Error("Sign in again to start lesson calls.");
     }
 
-    const response = await fetch(getApiUrl("/api/stream/session"), {
+    const response = await fetchWithTimeout(getApiUrl("/api/stream/session"), {
       headers: {
         Authorization: `Bearer ${clerkToken}`,
       },
