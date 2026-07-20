@@ -11,6 +11,7 @@ export default {
       bundleIdentifier: "com.salwansabil.duolingo-clone",
       icon: "./assets/assets/images/icon.png",
       infoPlist: {
+        ITSAppUsesNonExemptEncryption: false,
         NSCameraUsageDescription:
           "Bolo uses camera access for Stream lesson calls when video lessons are enabled.",
         NSMicrophoneUsageDescription:
@@ -56,6 +57,9 @@ export default {
       [
         "expo-build-properties",
         {
+          ios: {
+            usePrecompiledModules: false,
+          },
           android: {
             minSdkVersion: 24,
           },
