@@ -6,7 +6,7 @@ import { units } from "@/data/units";
 import { useLanguageStore } from "@/store/language-store";
 import { useLessonProgressStore } from "@/store/lesson-progress-store";
 import { useStreakStore } from "@/store/streak-store";
-import { useUser } from "@clerk/expo";
+import { useClerk, useUser } from "@clerk/expo";
 import { useRouter } from "expo-router";
 import { SymbolView, type AndroidSymbol, type SFSymbol } from "expo-symbols";
 import { AppState, Image, ScrollView, StyleSheet, Text, TouchableOpacity, View } from "react-native";
@@ -37,6 +37,7 @@ const videoIcon = {
 
 export default function HomeScreen() {
   const router = useRouter();
+  const { signOut } = useClerk();
   const { user } = useUser();
   const selectedLanguageId = useLanguageStore((state) => state.selectedLanguageId);
   const completedLessonIds = useLessonProgressStore((state) => state.completedLessonIds);
@@ -150,6 +151,20 @@ export default function HomeScreen() {
     });
   };
 
+  const handleSignOut = async () => {
+    posthog.capture("sign_out_pressed");
+    await signOut();
+    router.replace("/onboarding");
+  };
+
+  const handleChangeLanguage = () => {
+    posthog.capture("change_language_pressed", {
+      current_language_id: selectedLanguage.id,
+      current_language_name: selectedLanguage.name,
+    });
+    router.push("/language-selection");
+  };
+
   return (
     <SafeAreaView style={styles.safeArea}>
       <ScrollView
@@ -157,21 +172,21 @@ export default function HomeScreen() {
         showsVerticalScrollIndicator={false}
       >
         <View className="flex-row items-center justify-between">
-          <View className="flex-row items-center gap-[14px]">
+          <View className="min-w-0 flex-1 flex-row items-center gap-[14px]">
             <View className="h-[42px] w-[42px] items-center justify-center overflow-hidden rounded-full bg-[#FFF1E8]">
               <Text className="text-[32px] leading-[38px]">
                 {selectedLanguage.flagEmoji}
               </Text>
             </View>
             <Text
-              className="font-poppins-semibold text-[20px] leading-[26px] text-lingua-text-primary"
+              className="min-w-0 flex-1 font-poppins-semibold text-[20px] leading-[26px] text-lingua-text-primary"
               numberOfLines={1}
             >
               {localizedGreeting}, {firstName}! 👋
             </Text>
           </View>
 
-          <View className="flex-row items-center gap-[24px]">
+          <View className="flex-row items-center gap-[6px]">
             <View className="flex-row items-center gap-[7px]">
               <Image
                 className="h-[32px] w-[32px]"
@@ -183,6 +198,48 @@ export default function HomeScreen() {
               </Text>
             </View>
 
+            <TouchableOpacity
+              accessibilityLabel="Change language"
+              accessibilityRole="button"
+              activeOpacity={0.68}
+              onPress={handleChangeLanguage}
+              style={styles.iconButton}
+            >
+              <SymbolView
+                fallback={
+                  <Text className="font-poppins-semibold text-[11px] text-[#6E7690]">
+                    Lang
+                  </Text>
+                }
+                name={{ android: "language", ios: "globe" }}
+                size={24}
+                tintColor="#6E7690"
+                weight={{ android: { font: 500, name: "regular" }, ios: "semibold" }}
+              />
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              accessibilityLabel="Sign out"
+              accessibilityRole="button"
+              activeOpacity={0.68}
+              onPress={() => void handleSignOut()}
+              style={styles.iconButton}
+            >
+              <SymbolView
+                fallback={
+                  <Text className="font-poppins-semibold text-[12px] text-[#6E7690]">
+                    Exit
+                  </Text>
+                }
+                name={{
+                  android: "logout",
+                  ios: "rectangle.portrait.and.arrow.right",
+                }}
+                size={24}
+                tintColor="#6E7690"
+                weight={{ android: { font: 500, name: "regular" }, ios: "semibold" }}
+              />
+            </TouchableOpacity>
           </View>
         </View>
 

@@ -2,6 +2,8 @@ import AsyncStorage from "@react-native-async-storage/async-storage";
 import { create } from "zustand";
 import { createJSONStorage, persist } from "zustand/middleware";
 
+import { getPersistStorage } from "@/lib/persist-storage";
+
 const lessonProgressStorageName = "bolo-lesson-progress-storage";
 const defaultLessonXp = 10;
 
@@ -39,7 +41,7 @@ export const useLessonProgressStore = create<LessonProgressStore>()(
         completedLessonIds: state.completedLessonIds,
         totalXp: state.totalXp,
       }),
-      storage: createJSONStorage(() => AsyncStorage),
+      storage: createJSONStorage(getPersistStorage),
     },
   ),
 );

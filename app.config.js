@@ -1,6 +1,6 @@
 export default {
   expo: {
-    name: "duolingo-clone",
+    name: "Bolo",
     slug: "duolingo-clone",
     version: "1.0.0",
     orientation: "portrait",
@@ -67,6 +67,9 @@ export default {
       reactCompiler: true,
     },
     extra: {
+      eas: {
+        projectId: "5113fa3c-2385-4d56-a5ae-1a70bbeec221",
+      },
       posthogProjectToken: process.env.POSTHOG_PROJECT_TOKEN,
       posthogHost: process.env.POSTHOG_HOST || "https://us.i.posthog.com",
     },
