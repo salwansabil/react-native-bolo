@@ -11,10 +11,13 @@ import asyncio
 import contextlib
 import os
 from pathlib import Path
+from secrets import compare_digest
+from typing import Annotated
 
 from dotenv import dotenv_values
+from fastapi import Header, HTTPException, status
 from getstream.video.async_call import Call as StreamCall
-from vision_agents.core import Agent, AgentLauncher, Runner, User
+from vision_agents.core import Agent, AgentLauncher, Runner, ServeOptions, User
 from vision_agents.core.instructions import Instructions
 from vision_agents.plugins import getstream, openai
 
@@ -179,6 +182,22 @@ def validate_agent_env() -> None:
     get_required_env("STREAM_API_KEY")
     get_required_env("STREAM_API_SECRET")
     get_required_env("OPENAI_API_KEY")
+    get_required_env("VISION_AGENT_SERVICE_TOKEN")
+
+
+async def require_service_token(
+    call_id: str,
+    authorization: Annotated[str | None, Header()] = None,
+) -> None:
+    del call_id
+    expected_token = get_required_env("VISION_AGENT_SERVICE_TOKEN")
+    scheme, _, supplied_token = (authorization or "").partition(" ")
+
+    if scheme.lower() != "bearer" or not compare_digest(supplied_token, expected_token):
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Invalid Vision Agent service token",
+        )
 
 
 def get_selected_language(**kwargs: object) -> str:
@@ -398,7 +417,15 @@ async def join_call(
         await agent.finish()
 
 
-runner = Runner(AgentLauncher(create_agent=create_agent, join_call=join_call))
+runner = Runner(
+    AgentLauncher(create_agent=create_agent, join_call=join_call),
+    serve_options=ServeOptions(
+        can_start_session=require_service_token,
+        can_close_session=require_service_token,
+        can_view_session=require_service_token,
+        can_view_metrics=require_service_token,
+    ),
+)
 
 
 if __name__ == "__main__":
