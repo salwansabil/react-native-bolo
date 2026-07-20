@@ -96,6 +96,14 @@ async function withTimeout<T>(promise: Promise<T>, timeoutMs: number, message: s
   }
 }
 
+function getClerkTokenWithTimeout(getToken: () => Promise<string | null>) {
+  return withTimeout(
+    getToken(),
+    10000,
+    "Clerk authentication timed out. Sign out, sign back in, and try again.",
+  );
+}
+
 function getLessonJoinKey(callInfo: Pick<LessonCallResponse, "callId" | "callType">) {
   return `${callInfo.callType}:${callInfo.callId}`;
 }
@@ -278,9 +286,10 @@ export function AudioLessonCall({ lesson, onBackPress, selectedLanguageId }: Aud
     if (agentStatus === "connecting") return "AI teacher connecting";
     if (agentStatus === "connected") return "AI teacher connected";
     if (agentStatus === "failed") return agentErrorMessage ?? "AI teacher failed";
+    if (isConnectingLesson) return "Preparing AI teacher";
 
     return "AI teacher idle";
-  }, [agentErrorMessage, agentStatus]);
+  }, [agentErrorMessage, agentStatus, isConnectingLesson]);
   const agentStatusDotColor =
     agentStatus === "connected"
       ? "#37D878"
@@ -347,7 +356,7 @@ export function AudioLessonCall({ lesson, onBackPress, selectedLanguageId }: Aud
       const sessionKey = getAgentSessionKey(session);
 
       try {
-        const clerkToken = await getToken();
+        const clerkToken = await getClerkTokenWithTimeout(getToken);
 
         if (!clerkToken) return;
 
@@ -397,7 +406,7 @@ export function AudioLessonCall({ lesson, onBackPress, selectedLanguageId }: Aud
       throw new Error("Choose a lesson before starting a call.");
     }
 
-    const clerkToken = await getToken();
+    const clerkToken = await getClerkTokenWithTimeout(getToken);
 
     if (!clerkToken) {
       throw new Error("Sign in again to start this lesson call.");
@@ -448,7 +457,7 @@ export function AudioLessonCall({ lesson, onBackPress, selectedLanguageId }: Aud
           await stopAgentSession(existingSession);
         }
 
-        const clerkToken = await getToken();
+        const clerkToken = await getClerkTokenWithTimeout(getToken);
 
         if (!clerkToken) {
           throw new Error("Sign in again to connect the AI teacher.");
@@ -520,6 +529,17 @@ export function AudioLessonCall({ lesson, onBackPress, selectedLanguageId }: Aud
 
     try {
       const streamClient = client ?? (await connectClient());
+
+      // Connecting the client mounts StreamVideo above this screen, which remounts
+      // the lesson component. Let that render finish and stop this stale attempt.
+      if (!client) {
+        await wait(0);
+
+        if (!isMountedRef.current || joinAttemptIdRef.current !== attemptId) {
+          return;
+        }
+      }
+
       const callInfo = await createLessonCallSession();
       const joinKey = getLessonJoinKey(callInfo);
       const nextCall = streamClient.call(callInfo.callType, callInfo.callId);
@@ -538,7 +558,11 @@ export function AudioLessonCall({ lesson, onBackPress, selectedLanguageId }: Aud
         return;
       }
 
-      await nextCall.microphone.disable();
+      await withTimeout(
+        nextCall.microphone.disable(),
+        5000,
+        "Stream joined, but microphone setup timed out.",
+      );
       setCallStatus("joined");
       await startAgentSession(callInfo, nextCall);
     } catch (error) {

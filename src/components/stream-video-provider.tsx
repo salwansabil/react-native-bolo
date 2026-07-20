@@ -53,6 +53,20 @@ async function fetchWithTimeout(url: string, options: RequestInit, timeoutMs = 1
   }
 }
 
+function getClerkTokenWithTimeout(getToken: () => Promise<string | null>) {
+  let timeoutId: ReturnType<typeof setTimeout> | undefined;
+  const timeout = new Promise<never>((_, reject) => {
+    timeoutId = setTimeout(
+      () => reject(new Error("Clerk authentication timed out. Sign out, sign back in, and try again.")),
+      10000,
+    );
+  });
+
+  return Promise.race([getToken(), timeout]).finally(() => {
+    if (timeoutId) clearTimeout(timeoutId);
+  });
+}
+
 type StreamVideoContextValue = {
   canUseNativeSdk: boolean;
   client: StreamVideoClient | undefined;
@@ -113,7 +127,7 @@ export function StreamVideoProvider({ children }: { children: React.ReactNode })
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
   async function fetchStreamSession() {
-    const clerkToken = await getToken();
+    const clerkToken = await getClerkTokenWithTimeout(getToken);
 
     if (!clerkToken) {
       throw new Error("Sign in again to start lesson calls.");
