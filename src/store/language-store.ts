@@ -2,6 +2,7 @@ import AsyncStorage from "@react-native-async-storage/async-storage";
 import { create } from "zustand";
 import { createJSONStorage, persist } from "zustand/middleware";
 
+import { getPersistStorage } from "@/lib/persist-storage";
 import type { LanguageCode } from "@/types/learning";
 
 const languageStorageName = "bolo-language-storage";
@@ -41,7 +42,7 @@ export const useLanguageStore = create<LanguageStore>()(
       partialize: (state) => ({
         selectedLanguageId: state.selectedLanguageId,
       }),
-      storage: createJSONStorage(() => AsyncStorage),
+      storage: createJSONStorage(getPersistStorage),
     },
   ),
 );
