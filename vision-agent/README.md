@@ -12,6 +12,7 @@ overrides:
 STREAM_API_KEY=...
 STREAM_API_SECRET=...
 OPENAI_API_KEY=...
+VISION_AGENT_SERVICE_TOKEN=...
 ```
 
 Optional settings:
@@ -43,3 +44,25 @@ The built-in API starts an agent session with:
 ```bash
 POST /calls/{call_id}/sessions
 ```
+
+## Production container
+
+Build the CPU image from this directory:
+
+```bash
+docker build --platform linux/amd64 -t bolo-vision-agent .
+```
+
+Run it locally with the same secrets used by the app backend:
+
+```bash
+docker run --env-file .env -p 8080:8080 bolo-vision-agent
+```
+
+For cloud deployment, set the service root directory to `vision-agent` and
+deploy its `Dockerfile`. Configure `STREAM_API_KEY`, `STREAM_API_SECRET`,
+`OPENAI_API_KEY`, and `VISION_AGENT_SERVICE_TOKEN` in the hosting provider; do
+not commit them or copy them into the image. Use the same randomly generated
+`VISION_AGENT_SERVICE_TOKEN` in the Expo API backend. The container respects
+the provider's `PORT` environment variable and otherwise listens on port
+`8080`.

@@ -35,6 +35,10 @@ function getVisionAgentBaseUrl() {
   );
 }
 
+function getVisionAgentServiceToken() {
+  return process.env.VISION_AGENT_SERVICE_TOKEN?.trim() || null;
+}
+
 async function getResponseErrorMessage(response: Response, fallback: string) {
   const body = (await response.json().catch(() => null)) as ApiErrorBody | null;
   const message = typeof body?.error === "string" ? body.error : body?.detail;
@@ -47,12 +51,16 @@ async function isAgentSessionRunning(
   callId: string,
   sessionId: string,
   signal: AbortSignal,
+  serviceToken: string,
 ) {
   await wait(2500);
 
   const response = await fetch(
     `${baseUrl}/calls/${encodeURIComponent(callId)}/sessions/${encodeURIComponent(sessionId)}`,
-    { signal },
+    {
+      headers: { Authorization: `Bearer ${serviceToken}` },
+      signal,
+    },
   );
 
   return response.ok;
@@ -98,6 +106,12 @@ export async function POST(request: Request) {
       return Response.json({ error: "Vision Agent server is not configured" }, { status: 503 });
     }
 
+    const serviceToken = getVisionAgentServiceToken();
+
+    if (!serviceToken) {
+      return Response.json({ error: "Vision Agent service token is not configured" }, { status: 503 });
+    }
+
     const controller = new AbortController();
     const timeoutId = setTimeout(() => controller.abort(), 10000);
 
@@ -106,7 +120,10 @@ export async function POST(request: Request) {
         `${baseUrl}/calls/${encodeURIComponent(body.callId)}/sessions`,
         {
           body: JSON.stringify({ call_type: body.callType }),
-          headers: { "Content-Type": "application/json" },
+          headers: {
+            Authorization: `Bearer ${serviceToken}`,
+            "Content-Type": "application/json",
+          },
           method: "POST",
           signal: controller.signal,
         },
@@ -127,6 +144,7 @@ export async function POST(request: Request) {
         agentSession.call_id,
         agentSession.session_id,
         controller.signal,
+        serviceToken,
       );
 
       if (!isRunning) {

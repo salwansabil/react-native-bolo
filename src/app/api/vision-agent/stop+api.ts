@@ -19,6 +19,10 @@ function getVisionAgentBaseUrl() {
   );
 }
 
+function getVisionAgentServiceToken() {
+  return process.env.VISION_AGENT_SERVICE_TOKEN?.trim() || null;
+}
+
 function isStopAgentBody(value: unknown): value is StopAgentBody {
   if (!value || typeof value !== "object") {
     return false;
@@ -60,6 +64,12 @@ export async function POST(request: Request) {
       return Response.json({ stopped: false }, { status: 202 });
     }
 
+    const serviceToken = getVisionAgentServiceToken();
+
+    if (!serviceToken) {
+      return Response.json({ error: "Vision Agent service token is not configured" }, { status: 503 });
+    }
+
     const controller = new AbortController();
     const timeoutId = setTimeout(() => controller.abort(), 10000);
 
@@ -69,6 +79,7 @@ export async function POST(request: Request) {
           body.sessionId,
         )}/close`,
         {
+          headers: { Authorization: `Bearer ${serviceToken}` },
           method: "POST",
           signal: controller.signal,
         },
