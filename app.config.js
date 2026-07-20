@@ -7,6 +7,12 @@ export default {
     icon: "./assets/assets/images/icon.png",
     scheme: "duolingoclone",
     userInterfaceStyle: "automatic",
+    runtimeVersion: {
+      policy: "appVersion",
+    },
+    updates: {
+      url: "https://u.expo.dev/5113fa3c-2385-4d56-a5ae-1a70bbeec221",
+    },
     ios: {
       bundleIdentifier: "com.salwansabil.duolingo-clone",
       icon: "./assets/assets/images/icon.png",
