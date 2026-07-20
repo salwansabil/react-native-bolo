@@ -36,6 +36,23 @@ type ApiErrorBody = {
   error?: unknown;
 };
 
+async function fetchWithTimeout(url: string, options: RequestInit, timeoutMs = 15000) {
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
+
+  try {
+    return await fetch(url, { ...options, signal: controller.signal });
+  } catch (error) {
+    if (error instanceof Error && error.name === "AbortError") {
+      throw new Error("The Stream session server took too long to respond.");
+    }
+
+    throw error;
+  } finally {
+    clearTimeout(timeoutId);
+  }
+}
+
 type StreamVideoContextValue = {
   canUseNativeSdk: boolean;
   client: StreamVideoClient | undefined;
@@ -102,7 +119,7 @@ export function StreamVideoProvider({ children }: { children: React.ReactNode })
       throw new Error("Sign in again to start lesson calls.");
     }
 
-    const response = await fetch(getApiUrl("/api/stream/session"), {
+    const response = await fetchWithTimeout(getApiUrl("/api/stream/session"), {
       headers: {
         Authorization: `Bearer ${clerkToken}`,
       },

@@ -66,6 +66,36 @@ function wait(milliseconds: number) {
   });
 }
 
+async function fetchWithTimeout(url: string, options: RequestInit, timeoutMs = 15000) {
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
+
+  try {
+    return await fetch(url, { ...options, signal: controller.signal });
+  } catch (error) {
+    if (error instanceof Error && error.name === "AbortError") {
+      throw new Error("The server took too long to respond. Please try again.");
+    }
+
+    throw error;
+  } finally {
+    clearTimeout(timeoutId);
+  }
+}
+
+async function withTimeout<T>(promise: Promise<T>, timeoutMs: number, message: string) {
+  let timeoutId: ReturnType<typeof setTimeout> | undefined;
+  const timeout = new Promise<never>((_, reject) => {
+    timeoutId = setTimeout(() => reject(new Error(message)), timeoutMs);
+  });
+
+  try {
+    return await Promise.race([promise, timeout]);
+  } finally {
+    if (timeoutId) clearTimeout(timeoutId);
+  }
+}
+
 function getLessonJoinKey(callInfo: Pick<LessonCallResponse, "callId" | "callType">) {
   return `${callInfo.callType}:${callInfo.callId}`;
 }
@@ -115,7 +145,11 @@ async function joinLessonCallOnce(joinKey: string, nextCall: LessonCall) {
     return waitForJoiningCall(nextCall);
   }
 
-  const joinPromise = Promise.resolve().then(() => nextCall.join({ maxJoinRetries: 1 }));
+  const joinPromise = withTimeout(
+    Promise.resolve().then(() => nextCall.join({ maxJoinRetries: 1 })),
+    15000,
+    "Stream audio timed out while joining the lesson call.",
+  );
 
   pendingLessonJoins.set(joinKey, joinPromise);
 
@@ -317,7 +351,7 @@ export function AudioLessonCall({ lesson, onBackPress, selectedLanguageId }: Aud
 
         if (!clerkToken) return;
 
-        await fetch(getApiUrl("/api/vision-agent/stop"), {
+        await fetchWithTimeout(getApiUrl("/api/vision-agent/stop"), {
           body: JSON.stringify(session),
           headers: {
             Authorization: `Bearer ${clerkToken}`,
@@ -369,7 +403,7 @@ export function AudioLessonCall({ lesson, onBackPress, selectedLanguageId }: Aud
       throw new Error("Sign in again to start this lesson call.");
     }
 
-    const response = await fetch(getApiUrl("/api/stream/lesson-call"), {
+    const response = await fetchWithTimeout(getApiUrl("/api/stream/lesson-call"), {
       body: JSON.stringify({
         languageId: language.id,
         lessonId: lesson.id,
@@ -420,14 +454,14 @@ export function AudioLessonCall({ lesson, onBackPress, selectedLanguageId }: Aud
           throw new Error("Sign in again to connect the AI teacher.");
         }
 
-        const response = await fetch(getApiUrl("/api/vision-agent/start"), {
+        const response = await fetchWithTimeout(getApiUrl("/api/vision-agent/start"), {
           body: JSON.stringify(sessionBody),
           headers: {
             Authorization: `Bearer ${clerkToken}`,
             "Content-Type": "application/json",
           },
           method: "POST",
-        });
+        }, 20000);
 
         if (!response.ok) {
           const message = await getApiErrorMessage(
