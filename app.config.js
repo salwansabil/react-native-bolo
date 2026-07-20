@@ -57,6 +57,9 @@ export default {
       [
         "expo-build-properties",
         {
+          ios: {
+            usePrecompiledModules: false,
+          },
           android: {
             minSdkVersion: 24,
           },
