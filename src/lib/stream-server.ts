@@ -44,12 +44,13 @@ function getRequiredEnv(name: ServerEnvName) {
       : name === "STREAM_API_KEY"
         ? process.env.STREAM_API_KEY
         : process.env.STREAM_API_SECRET;
+  const normalizedValue = value?.trim();
 
-  if (!value) {
+  if (!normalizedValue) {
     throw new Error(`Missing ${name}`);
   }
 
-  return value;
+  return normalizedValue;
 }
 
 function getBearerToken(request: Request) {

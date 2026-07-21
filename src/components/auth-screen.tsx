@@ -62,8 +62,7 @@ export function AuthScreen({ mode }: AuthScreenProps) {
     : "Don't have an account?";
   const footerAction = isSignUp ? "Log in" : "Sign up";
   const footerRoute = isSignUp ? "/sign-in" : "/sign-up";
-  const canSubmit =
-    emailAddress.trim().length > 0 && (!isSignUp || password.length > 0);
+  const canSubmit = emailAddress.trim().length > 0 && password.length > 0;
 
   const getClerkResultErrorMessage = (
     error: { longMessage?: string; message?: string } | null,
@@ -126,20 +125,53 @@ export function AuthScreen({ mode }: AuthScreenProps) {
         return;
       }
 
-      posthog.capture("sign_in_submitted", { method: "email" });
+      posthog.capture("sign_in_submitted", { method: "password" });
 
-      const signInResult = await signIn.emailCode.sendCode({
+      const signInResult = await signIn.password({
         emailAddress: emailAddress.trim(),
+        password,
       });
       const signInError = getClerkResultErrorMessage(signInResult.error);
 
       if (signInError) {
         setAuthError(signInError);
-        posthog.capture("auth_error_occurred", { mode: "sign_in", method: "email", error: signInError });
+        posthog.capture("auth_error_occurred", { mode: "sign_in", method: "password", error: signInError });
         return;
       }
 
-      openVerificationModal();
+      if (signIn.status === "complete") {
+        const finalizeResult = await signIn.finalize();
+        const finalizeError = getClerkResultErrorMessage(finalizeResult.error);
+
+        if (finalizeError) {
+          setAuthError(finalizeError);
+          posthog.capture("auth_error_occurred", {
+            mode: "sign_in",
+            method: "password",
+            step: "finalize",
+            error: finalizeError,
+          });
+          return;
+        }
+
+        posthog.capture("sign_in_completed", { method: "password" });
+        router.replace("/");
+        return;
+      }
+
+      if (signIn.status === "needs_client_trust") {
+        setAuthError(
+          "This device requires an additional verification step. Please contact support.",
+        );
+        return;
+      }
+
+      if (signIn.status === "needs_second_factor") {
+        setAuthError("This account requires multi-factor authentication.");
+        return;
+      }
+
+      setAuthError("Sign in is not complete yet. Please try again.");
     } catch (error) {
       const msg = getErrorMessage(error);
       setAuthError(msg);
@@ -159,66 +191,34 @@ export function AuthScreen({ mode }: AuthScreenProps) {
       setIsSubmitting(true);
 
       try {
-        if (isSignUp) {
-          const verifySignUpResult = await signUp.verifications.verifyEmailCode({
-            code: digitsOnly,
-          });
-          const verifySignUpError = getClerkResultErrorMessage(verifySignUpResult.error);
-
-          if (verifySignUpError) {
-            setAuthError(verifySignUpError);
-            posthog.capture("auth_error_occurred", { mode: "sign_up", step: "verification", error: verifySignUpError });
-            return;
-          }
-
-          if (signUp.status === "complete") {
-            const finalizeResult = await signUp.finalize();
-            const finalizeError = getClerkResultErrorMessage(finalizeResult.error);
-
-            if (finalizeError) {
-              setAuthError(finalizeError);
-              posthog.capture("auth_error_occurred", { mode: "sign_up", step: "finalize", error: finalizeError });
-              return;
-            }
-
-            posthog.capture("sign_up_completed", { method: "email" });
-            setIsVerificationVisible(false);
-            router.replace("/");
-            return;
-          }
-
-          setAuthError("Sign up is not complete yet. Please try again.");
-          return;
-        }
-
-        const verifySignInResult = await signIn.emailCode.verifyCode({
+        const verifySignUpResult = await signUp.verifications.verifyEmailCode({
           code: digitsOnly,
         });
-        const verifySignInError = getClerkResultErrorMessage(verifySignInResult.error);
+        const verifySignUpError = getClerkResultErrorMessage(verifySignUpResult.error);
 
-        if (verifySignInError) {
-          setAuthError(verifySignInError);
-          posthog.capture("auth_error_occurred", { mode: "sign_in", step: "verification", error: verifySignInError });
+        if (verifySignUpError) {
+          setAuthError(verifySignUpError);
+          posthog.capture("auth_error_occurred", { mode: "sign_up", step: "verification", error: verifySignUpError });
           return;
         }
 
-        if (signIn.status === "complete") {
-          const finalizeResult = await signIn.finalize();
+        if (signUp.status === "complete") {
+          const finalizeResult = await signUp.finalize();
           const finalizeError = getClerkResultErrorMessage(finalizeResult.error);
 
           if (finalizeError) {
             setAuthError(finalizeError);
-            posthog.capture("auth_error_occurred", { mode: "sign_in", step: "finalize", error: finalizeError });
+            posthog.capture("auth_error_occurred", { mode: "sign_up", step: "finalize", error: finalizeError });
             return;
           }
 
-          posthog.capture("sign_in_completed", { method: "email" });
+          posthog.capture("sign_up_completed", { method: "email" });
           setIsVerificationVisible(false);
           router.replace("/");
           return;
         }
 
-        setAuthError("Sign in is not complete yet. Please try again.");
+        setAuthError("Sign up is not complete yet. Please try again.");
       } catch (error) {
         setVerificationCode("");
         const msg = getErrorMessage(error);
@@ -321,28 +321,30 @@ export function AuthScreen({ mode }: AuthScreenProps) {
             />
           </View>
 
-          {isSignUp ? (
-            <View className="rounded-[21px] border border-[#EBEDF3] bg-white px-6 py-[18px]">
-              <Text className="font-poppins-semibold text-[16px] leading-[20px] text-[#7B7F9E]">
-                Password
-              </Text>
-              <View className="flex-row items-center gap-3">
-                <TextInput
-                  placeholder="•••••••••"
-                  placeholderTextColor="rgba(2, 7, 53, 0.42)"
-                  secureTextEntry={!isPasswordVisible}
-                  onChangeText={setPassword}
-                  style={[styles.fieldInput, styles.passwordInput]}
-                  underlineColorAndroid="transparent"
-                  value={password}
-                />
-                <EyeIcon
-                  isVisible={isPasswordVisible}
-                  onPress={() => setIsPasswordVisible((prev) => !prev)}
-                />
-              </View>
+          <View className="rounded-[21px] border border-[#EBEDF3] bg-white px-6 py-[18px]">
+            <Text className="font-poppins-semibold text-[16px] leading-[20px] text-[#7B7F9E]">
+              Password
+            </Text>
+            <View className="flex-row items-center gap-3">
+              <TextInput
+                autoCapitalize="none"
+                autoComplete={isSignUp ? "new-password" : "current-password"}
+                autoCorrect={false}
+                onChangeText={setPassword}
+                placeholder="•••••••••"
+                placeholderTextColor="rgba(2, 7, 53, 0.42)"
+                secureTextEntry={!isPasswordVisible}
+                style={[styles.fieldInput, styles.passwordInput]}
+                textContentType={isSignUp ? "newPassword" : "password"}
+                underlineColorAndroid="transparent"
+                value={password}
+              />
+              <EyeIcon
+                isVisible={isPasswordVisible}
+                onPress={() => setIsPasswordVisible((prev) => !prev)}
+              />
             </View>
-          ) : null}
+          </View>
 
           <TouchableOpacity
             activeOpacity={0.82}
