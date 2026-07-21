@@ -1,6 +1,14 @@
 import { getApiUrl } from "@/lib/api";
 import { useAuth, useUser } from "@clerk/expo";
-import { createContext, useContext, useEffect, useMemo, useRef, useState } from "react";
+import {
+  createContext,
+  useCallback,
+  useContext,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
 import { NativeModules } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
@@ -17,10 +25,6 @@ type StreamVideoComponent = React.ComponentType<{
   client: StreamVideoClient;
   style?: unknown;
 }>;
-type StreamCallManager = Pick<
-  typeof import("@stream-io/video-react-native-sdk").callManager,
-  "speaker" | "start" | "stop"
->;
 type TokenProvider = import("@stream-io/video-react-native-sdk").TokenProvider;
 type User = import("@stream-io/video-react-native-sdk").User;
 
@@ -74,8 +78,9 @@ type StreamVideoContextValue = {
   errorMessage: string | null;
   isLoading: boolean;
   ParticipantView: ParticipantViewComponent | undefined;
-  callManager: StreamCallManager | undefined;
   StreamCall: StreamCallComponent | undefined;
+  StreamVideo: StreamVideoComponent | undefined;
+  streamTheme: unknown;
   user: User | null;
 };
 
@@ -88,8 +93,9 @@ const StreamVideoContext = createContext<StreamVideoContextValue>({
   errorMessage: null,
   isLoading: false,
   ParticipantView: undefined,
-  callManager: undefined,
   StreamCall: undefined,
+  StreamVideo: undefined,
+  streamTheme: undefined,
   user: null,
 });
 
@@ -116,17 +122,19 @@ export function StreamVideoProvider({ children }: { children: React.ReactNode })
   const { user: clerkUser } = useUser();
   const insets = useSafeAreaInsets();
   const clientRef = useRef<StreamVideoClient | undefined>(undefined);
+  const clientUserIdRef = useRef<string | null>(null);
+  const connectionPromiseRef = useRef<Promise<StreamVideoClient> | null>(null);
+  const connectionGenerationRef = useRef(0);
   const canUseNativeSdk = hasStreamNativeModules();
   const [client, setClient] = useState<StreamVideoClient>();
   const [ParticipantView, setParticipantView] = useState<ParticipantViewComponent>();
   const [StreamCall, setStreamCall] = useState<StreamCallComponent>();
   const [StreamVideo, setStreamVideo] = useState<StreamVideoComponent>();
-  const [callManager, setCallManager] = useState<StreamCallManager>();
   const [streamUser, setStreamUser] = useState<User | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
-  async function fetchStreamSession() {
+  const fetchStreamSession = useCallback(async () => {
     const clerkToken = await getClerkTokenWithTimeout(getToken);
 
     if (!clerkToken) {
@@ -140,89 +148,152 @@ export function StreamVideoProvider({ children }: { children: React.ReactNode })
     });
 
     return parseStreamSession(response);
-  }
+  }, [getToken]);
 
-  async function connectClient() {
+  const clearClientState = useCallback(() => {
+    setClient(undefined);
+    setParticipantView(undefined);
+    setStreamCall(undefined);
+    setStreamVideo(undefined);
+    setStreamUser(null);
+  }, []);
+
+  const disconnectClient = useCallback(async () => {
+    connectionGenerationRef.current += 1;
+    connectionPromiseRef.current = null;
+
+    const currentClient = clientRef.current;
+
+    clientRef.current = undefined;
+    clientUserIdRef.current = null;
+    clearClientState();
+    setErrorMessage(null);
+    setIsLoading(false);
+
+    try {
+      await currentClient?.disconnectUser();
+    } catch (error) {
+      console.warn("Unable to disconnect Stream user", error);
+    }
+  }, [clearClientState]);
+
+  const connectClient = useCallback(async () => {
     if (clientRef.current) {
       return clientRef.current;
+    }
+
+    if (connectionPromiseRef.current) {
+      return connectionPromiseRef.current;
     }
 
     if (!isLoaded || !isSignedIn) {
       throw new Error("Sign in again to start lesson calls.");
     }
 
-    setIsLoading(true);
-    setErrorMessage(null);
+    const connectionGeneration = connectionGenerationRef.current;
+    const connectionPromise = (async () => {
+      setIsLoading(true);
+      setErrorMessage(null);
+
+      try {
+        if (!canUseNativeSdk) {
+          throw new Error("Rebuild the Expo dev client to enable Stream audio calls.");
+        }
+
+        const streamSdk = await import("@stream-io/video-react-native-sdk");
+        const session = await fetchStreamSession();
+
+        if (connectionGenerationRef.current !== connectionGeneration) {
+          throw new Error("Stream connection was cancelled.");
+        }
+
+        const user: User = {
+          id: session.userId,
+          image: session.userImage,
+          name: session.userName || clerkUser?.fullName || clerkUser?.username || session.userId,
+        };
+        const tokenProvider: TokenProvider = async () => {
+          const freshSession = await fetchStreamSession();
+          return freshSession.token;
+        };
+        const nextClient = streamSdk.StreamVideoClient.getOrCreateInstance({
+          apiKey: session.apiKey,
+          token: session.token,
+          tokenProvider,
+          user,
+        });
+
+        if (connectionGenerationRef.current !== connectionGeneration) {
+          await nextClient.disconnectUser();
+          throw new Error("Stream connection was cancelled.");
+        }
+
+        clientRef.current = nextClient;
+        clientUserIdRef.current = session.userId;
+        setStreamUser(user);
+        setClient(nextClient);
+        setParticipantView(() => streamSdk.ParticipantView as ParticipantViewComponent);
+        setStreamCall(() => streamSdk.StreamCall as StreamCallComponent);
+        setStreamVideo(() => streamSdk.StreamVideo as StreamVideoComponent);
+
+        return nextClient;
+      } catch (error) {
+        if (connectionGenerationRef.current === connectionGeneration) {
+          const message = error instanceof Error ? error.message : "Stream session failed.";
+
+          setErrorMessage(message);
+          clearClientState();
+        }
+
+        throw error;
+      } finally {
+        if (connectionGenerationRef.current === connectionGeneration) {
+          setIsLoading(false);
+        }
+      }
+    })();
+
+    connectionPromiseRef.current = connectionPromise;
 
     try {
-      if (!canUseNativeSdk) {
-        throw new Error("Rebuild the Expo dev client to enable Stream audio calls.");
-      }
-
-      const streamSdk = await import("@stream-io/video-react-native-sdk");
-      const session = await fetchStreamSession();
-      const user: User = {
-        id: session.userId,
-        image: session.userImage,
-        name: session.userName || clerkUser?.fullName || clerkUser?.username || session.userId,
-      };
-
-      const tokenProvider: TokenProvider = async () => {
-        const freshSession = await fetchStreamSession();
-        return freshSession.token;
-      };
-
-      const nextClient = streamSdk.StreamVideoClient.getOrCreateInstance({
-        apiKey: session.apiKey,
-        token: session.token,
-        tokenProvider,
-        user,
-      });
-
-      clientRef.current = nextClient;
-      setStreamUser(user);
-      setClient(nextClient);
-      setParticipantView(() => streamSdk.ParticipantView as ParticipantViewComponent);
-      setStreamCall(() => streamSdk.StreamCall as StreamCallComponent);
-      setStreamVideo(() => streamSdk.StreamVideo as StreamVideoComponent);
-      setCallManager(streamSdk.callManager);
-
-      return nextClient;
-    } catch (error) {
-      const message = error instanceof Error ? error.message : "Stream session failed.";
-
-      setErrorMessage(message);
-      setClient(undefined);
-      setParticipantView(undefined);
-      setStreamCall(undefined);
-      setStreamVideo(undefined);
-      setCallManager(undefined);
-      setStreamUser(null);
-      throw error;
+      return await connectionPromise;
     } finally {
-      setIsLoading(false);
+      if (connectionPromiseRef.current === connectionPromise) {
+        connectionPromiseRef.current = null;
+      }
     }
-  }
+  }, [
+    canUseNativeSdk,
+    clearClientState,
+    clerkUser,
+    fetchStreamSession,
+    isLoaded,
+    isSignedIn,
+  ]);
+
+  useEffect(() => {
+    if (!isLoaded || !clientRef.current) {
+      return;
+    }
+
+    if (!isSignedIn || clientUserIdRef.current !== clerkUser?.id) {
+      void disconnectClient();
+    }
+  }, [clerkUser?.id, disconnectClient, isLoaded, isSignedIn]);
 
   useEffect(() => {
     return () => {
+      connectionGenerationRef.current += 1;
+      connectionPromiseRef.current = null;
+
       const currentClient = clientRef.current;
+
       clientRef.current = undefined;
+      clientUserIdRef.current = null;
       void currentClient?.disconnectUser();
     };
   }, []);
 
-  const value = {
-    canUseNativeSdk,
-    client,
-    connectClient,
-    errorMessage,
-    isLoading,
-    ParticipantView,
-    callManager,
-    StreamCall,
-    user: streamUser,
-  };
   const streamTheme = useMemo(
     () =>
       ({
@@ -237,20 +308,52 @@ export function StreamVideoProvider({ children }: { children: React.ReactNode })
       }) as unknown,
     [insets.bottom, insets.left, insets.right, insets.top],
   );
+  const value = useMemo(
+    () => ({
+      canUseNativeSdk,
+      client,
+      connectClient,
+      errorMessage,
+      isLoading,
+      ParticipantView,
+      StreamCall,
+      StreamVideo,
+      streamTheme,
+      user: streamUser,
+    }),
+    [
+      canUseNativeSdk,
+      client,
+      connectClient,
+      errorMessage,
+      isLoading,
+      ParticipantView,
+      StreamCall,
+      StreamVideo,
+      streamTheme,
+      streamUser,
+    ],
+  );
 
   return (
-    <StreamVideoContext.Provider value={value}>
-      {client && StreamVideo ? (
-        <StreamVideo client={client} style={streamTheme}>
-          {children}
-        </StreamVideo>
-      ) : (
-        children
-      )}
-    </StreamVideoContext.Provider>
+    <StreamVideoContext.Provider value={value}>{children}</StreamVideoContext.Provider>
   );
 }
 
 export function useLessonStreamVideo() {
   return useContext(StreamVideoContext);
+}
+
+export function LessonStreamVideo({ children }: { children: React.ReactNode }) {
+  const { client, StreamVideo, streamTheme } = useLessonStreamVideo();
+
+  if (!client || !StreamVideo) {
+    return children;
+  }
+
+  return (
+    <StreamVideo client={client} style={streamTheme}>
+      {children}
+    </StreamVideo>
+  );
 }

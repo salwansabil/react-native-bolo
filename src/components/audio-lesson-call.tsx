@@ -1,7 +1,10 @@
 import { images } from "@/constants/images";
 import { languages } from "@/data/languages";
 import { getApiUrl } from "@/lib/api";
-import { useLessonStreamVideo } from "@/components/stream-video-provider";
+import {
+  LessonStreamVideo,
+  useLessonStreamVideo,
+} from "@/components/stream-video-provider";
 import { useLessonProgressStore } from "@/store/lesson-progress-store";
 import { posthog } from "@/config/posthog";
 import type { LanguageCode, Lesson } from "@/types/learning";
@@ -252,7 +255,6 @@ export function AudioLessonCall({ lesson, onBackPress, selectedLanguageId }: Aud
     errorMessage: streamErrorMessage,
     isLoading: isStreamLoading,
     ParticipantView,
-    callManager,
     StreamCall,
   } = useLessonStreamVideo();
   const isFocused = useIsFocused();
@@ -282,22 +284,25 @@ export function AudioLessonCall({ lesson, onBackPress, selectedLanguageId }: Aud
   const isBusy = callStatus === "connecting";
   const isJoined = callStatus === "joined";
   const isConnectingLesson = isStreamLoading || callStatus === "connecting";
+  const hasConnectionError =
+    callStatus === "error" || Boolean(streamErrorMessage || errorMessage);
   const agentStatusLabel = useMemo(() => {
     if (agentStatus === "connecting") return "AI teacher connecting";
     if (agentStatus === "connected") return "AI teacher connected";
     if (agentStatus === "failed") return agentErrorMessage ?? "AI teacher failed";
+    if (hasConnectionError) return "Connection failed";
     if (isConnectingLesson) return "Preparing AI teacher";
 
     return "AI teacher idle";
-  }, [agentErrorMessage, agentStatus, isConnectingLesson]);
+  }, [agentErrorMessage, agentStatus, hasConnectionError, isConnectingLesson]);
   const agentStatusDotColor =
-    agentStatus === "connected"
+    hasConnectionError || agentStatus === "failed"
+      ? "#FF4B4B"
+      : agentStatus === "connected"
       ? "#37D878"
       : agentStatus === "connecting"
         ? "#F7B731"
-        : agentStatus === "failed"
-          ? "#FF4B4B"
-          : "#C8CAD3";
+        : "#C8CAD3";
 
   useEffect(() => {
     callRef.current = call;
@@ -336,20 +341,6 @@ export function AudioLessonCall({ lesson, onBackPress, selectedLanguageId }: Aud
       isLeavingAfterEndRef.current = false;
     }
   }, [isFocused]);
-
-  useEffect(() => {
-    if (!callManager || !isJoined) {
-      return;
-    }
-
-    callManager.start({ audioRole: "communicator", deviceEndpointType: "speaker" });
-    callManager.speaker.setForceSpeakerphoneOn(true);
-
-    return () => {
-      callManager.speaker.setForceSpeakerphoneOn(false);
-      callManager.stop();
-    };
-  }, [callManager, isJoined]);
 
   const stopAgentSession = useCallback(
     async (session: AgentSession) => {
@@ -520,6 +511,8 @@ export function AudioLessonCall({ lesson, onBackPress, selectedLanguageId }: Aud
 
   const joinLessonCall = useCallback(async () => {
     const attemptId = joinAttemptIdRef.current + 1;
+    let attemptCall: LessonCall | undefined;
+
     joinAttemptIdRef.current = attemptId;
     isLeavingAfterEndRef.current = false;
     setErrorMessage(null);
@@ -529,21 +522,14 @@ export function AudioLessonCall({ lesson, onBackPress, selectedLanguageId }: Aud
 
     try {
       const streamClient = client ?? (await connectClient());
-
-      // Connecting the client mounts StreamVideo above this screen, which remounts
-      // the lesson component. Let that render finish and stop this stale attempt.
-      if (!client) {
-        await wait(0);
-
-        if (!isMountedRef.current || joinAttemptIdRef.current !== attemptId) {
-          return;
-        }
-      }
-
       const callInfo = await createLessonCallSession();
       const joinKey = getLessonJoinKey(callInfo);
-      const nextCall = streamClient.call(callInfo.callType, callInfo.callId);
+      const nextCall = streamClient.call(callInfo.callType, callInfo.callId, {
+        reuseInstance: true,
+      });
 
+      attemptCall = nextCall;
+      callRef.current = nextCall;
       setCall(nextCall);
       setCallStatus("connecting");
 
@@ -566,6 +552,18 @@ export function AudioLessonCall({ lesson, onBackPress, selectedLanguageId }: Aud
       setCallStatus("joined");
       await startAgentSession(callInfo, nextCall);
     } catch (error) {
+      if (attemptCall) {
+        try {
+          await leaveLessonCall(attemptCall);
+        } catch (leaveError) {
+          console.warn("Unable to clean up failed lesson call", leaveError);
+        }
+
+        if (callRef.current === attemptCall) {
+          callRef.current = undefined;
+        }
+      }
+
       if (
         !isMountedRef.current ||
         isLeavingAfterEndRef.current ||
@@ -600,9 +598,7 @@ export function AudioLessonCall({ lesson, onBackPress, selectedLanguageId }: Aud
     const autoJoinKey = `${language.id}:${lesson.id}`;
 
     if (
-      autoJoinLessonId.current === autoJoinKey &&
-      callStatus !== "ended" &&
-      callStatus !== "error"
+      autoJoinLessonId.current === autoJoinKey
     ) {
       return;
     }
@@ -815,33 +811,58 @@ export function AudioLessonCall({ lesson, onBackPress, selectedLanguageId }: Aud
         </View>
 
         <View style={styles.pushToTalkContainer}>
-          <TouchableOpacity
-            accessibilityHint="Keep holding while you speak, then release when you finish"
-            accessibilityLabel="Hold to talk"
-            activeOpacity={1}
-            disabled={!isJoined}
-            onPressIn={() => void startTalking()}
-            onPressOut={() => void stopTalking()}
-            style={[
-              styles.pushToTalkButton,
-              isHoldingToTalk && styles.pushToTalkButtonActive,
-              !isJoined && styles.disabledCallActionButton,
-            ]}
-          >
-            <SymbolView
-              fallback={<Text className="font-poppins-bold text-[28px] text-white">●</Text>}
-              name={{ android: "mic", ios: "mic.fill" }}
-              size={35}
-              tintColor="#FFFFFF"
-              weight={{ android: { font: 500, name: "regular" }, ios: "semibold" }}
-            />
-          </TouchableOpacity>
+          {hasConnectionError ? (
+            <TouchableOpacity
+              accessibilityLabel="Try connecting to the AI teacher again"
+              activeOpacity={0.82}
+              onPress={() => void joinLessonCall()}
+              style={styles.retryConnectionButton}
+            >
+              <SymbolView
+                fallback={<Text className="font-poppins-bold text-[25px] text-white">↻</Text>}
+                name={{ android: "refresh", ios: "arrow.clockwise" }}
+                size={30}
+                tintColor="#FFFFFF"
+                weight={{ android: { font: 500, name: "regular" }, ios: "semibold" }}
+              />
+            </TouchableOpacity>
+          ) : (
+            <TouchableOpacity
+              accessibilityHint="Keep holding while you speak, then release when you finish"
+              accessibilityLabel="Hold to talk"
+              activeOpacity={1}
+              disabled={!isJoined}
+              onPressIn={() => void startTalking()}
+              onPressOut={() => void stopTalking()}
+              style={[
+                styles.pushToTalkButton,
+                isHoldingToTalk && styles.pushToTalkButtonActive,
+                !isJoined && styles.disabledCallActionButton,
+              ]}
+            >
+              <SymbolView
+                fallback={<Text className="font-poppins-bold text-[28px] text-white">●</Text>}
+                name={{ android: "mic", ios: "mic.fill" }}
+                size={35}
+                tintColor="#FFFFFF"
+                weight={{ android: { font: 500, name: "regular" }, ios: "semibold" }}
+              />
+            </TouchableOpacity>
+          )}
           <View className="items-center gap-[2px]">
             <Text className="font-poppins-semibold text-[16px] leading-[22px] text-[#07112F]">
-              {isHoldingToTalk ? "Listening..." : "Push and hold to talk"}
+              {hasConnectionError
+                ? "Try connecting again"
+                : isHoldingToTalk
+                  ? "Listening..."
+                  : "Push and hold to talk"}
             </Text>
             <Text className="font-poppins-medium text-[13px] leading-[18px] text-[#8B8C96]">
-              {isHoldingToTalk ? "Release when you're finished" : "Your mic stays off until you hold"}
+              {hasConnectionError
+                ? "The message above explains what went wrong"
+                : isHoldingToTalk
+                  ? "Release when you're finished"
+                  : "Your mic stays off until you hold"}
             </Text>
           </View>
         </View>
@@ -857,11 +878,11 @@ export function AudioLessonCall({ lesson, onBackPress, selectedLanguageId }: Aud
     </SafeAreaView>
   );
 
-  if (call && StreamCall) {
-    return <StreamCall call={call}>{screen}</StreamCall>;
-  }
-
-  return screen;
+  return (
+    <LessonStreamVideo>
+      {call && StreamCall ? <StreamCall call={call}>{screen}</StreamCall> : screen}
+    </LessonStreamVideo>
+  );
 }
 
 type LiveCaptionsProps = {
@@ -1204,6 +1225,16 @@ const styles = StyleSheet.create({
   pushToTalkButtonActive: {
     backgroundColor: "#5B3BF6",
     transform: [{ scale: 0.94 }],
+  },
+  retryConnectionButton: {
+    alignItems: "center",
+    backgroundColor: "#F0524D",
+    borderCurve: "continuous",
+    borderRadius: 40,
+    boxShadow: "0 8px 18px rgba(240, 82, 77, 0.24)",
+    height: 78,
+    justifyContent: "center",
+    width: 78,
   },
   disabledCallActionButton: {
     opacity: 0.48,
